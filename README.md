@@ -1,2 +1,2 @@
 # VirtualKeyboard
-Stardew Valley mod that show virtual keyboard
+Stardew Valley mod that show simple virtual keyboard
