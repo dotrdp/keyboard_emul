@@ -35,7 +35,6 @@ namespace VirtualKeyboard
             Texture2D texture = helper.ModContent.Load<Texture2D>("assets/togglebutton.png");
             this.VirtualToggleButton = new ClickableTextureComponent(new Rectangle(this.ModConfig.vToggle.rectangle.X, this.ModConfig.vToggle.rectangle.Y, this.ModConfig.vToggle.rectangle.Width, this.ModConfig.vToggle.rectangle.Height), texture, new Rectangle(0, 0, 16, 16), 4f, false);
             helper.WriteConfig<ModConfig>(this.ModConfig);
-            helper.Events.Input.ButtonPressed += this.OnButtonPressed;
             helper.Events.Display.Rendered += this.Rendered;
             helper.Events.Display.MenuChanged += this.OnMenuChanged;
             helper.Events.Input.ButtonPressed += this.VirtualToggleButtonPressed;
@@ -95,22 +94,6 @@ namespace VirtualKeyboard
 
             float scale = 0.5f + this.EnabledStage * 0.5f;
             this.VirtualToggleButton.draw(e.SpriteBatch, Color.Multiply(Color.White, scale), 1E-06f, 0);
-        }
-
-        /*********
-        ** Private methods
-        *********/
-        /// <summary>Raised after the player presses a button on the keyboard, controller, or mouse.</summary>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
-        private void OnButtonPressed(object? sender, ButtonPressedEventArgs e)
-        {
-            // ignore if player hasn't loaded a save yet
-            if (!Context.IsWorldReady)
-                return;
-
-            // print button presses to the console window
-            this.Monitor.Log($"{Game1.player.Name} pressed {e.Button}.", LogLevel.Debug);
         }
     }
 }
