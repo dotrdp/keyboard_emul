@@ -5,26 +5,26 @@ using StardewModdingAPI;
 using StardewValley.Menus;
 using StardewValley;
 using System.Reflection;
+using static System.Net.Mime.MediaTypeNames;
+using Microsoft.Xna.Framework.Graphics.PackedVector;
 
 namespace VirtualKeyboard
 {
     internal class KeyButton
     {
-        private readonly Rectangle ButtonRectangle;
+        public const int ButtonBorderWidth = 4 * Game1.pixelZoom;
+        public Rectangle OutterBounds;
+        private Rectangle InnerBounds;
         private readonly SButton ButtonKey;
         private readonly float Transparency;
         private readonly string Alias;
-        private readonly string Command;
         public bool Hidden;
-        private TextEntryMenu Menu;
 
         public KeyButton(IModHelper helper, ModConfig.VirtualButton buttonDefine)
         {
             this.Hidden = true;
-            this.ButtonRectangle = new Rectangle(buttonDefine.rectangle.X, buttonDefine.rectangle.Y, buttonDefine.rectangle.Width, buttonDefine.rectangle.Height);
             this.ButtonKey = buttonDefine.key;
-            this.Alias = buttonDefine.alias != null ? buttonDefine.alias : this.ButtonKey.ToString();
-            this.Command = buttonDefine.command;
+            this.Alias = buttonDefine.alias != "" ? buttonDefine.alias : this.ButtonKey.ToString();
             if ((double)buttonDefine.transparency <= 0.0099999997764825821 || (double)buttonDefine.transparency > 1.0)
                 buttonDefine.transparency = 0.5f;
             this.Transparency = buttonDefine.transparency;
@@ -33,13 +33,25 @@ namespace VirtualKeyboard
             //helper.Events.Input.ButtonReleased += new EventHandler<ButtonReleasedEventArgs>(this.EventInputButtonReleased);
             helper.Events.Input.ButtonPressed += this.EventInputButtonPressed;
         }
+        
+        public void CalcBounds(int x, int y)
+        {
+            this.OutterBounds.X = x;
+            this.OutterBounds.Y = y;
+
+            Vector2 bounds = Game1.smallFont.MeasureString(this.Alias);
+            this.InnerBounds.X = OutterBounds.X + ButtonBorderWidth;
+            this.InnerBounds.Y = OutterBounds.Y + ButtonBorderWidth;
+            this.InnerBounds.Width = (int)bounds.X + 1;
+            this.InnerBounds.Height = (int)bounds.Y + 1;
+            
+            this.OutterBounds.Width = InnerBounds.Width + ButtonBorderWidth * 2;
+            this.OutterBounds.Height = InnerBounds.Height + ButtonBorderWidth * 2;
+        }
         private bool ShouldTrigger(Vector2 screenPixels, SButton button)
         {
-            Rectangle buttonRectangle = this.ButtonRectangle;
-            if (!((Rectangle)ref buttonRectangle).Contains(screenPixels.X, screenPixels.Y) || this.Hidden || button != 1000)
+            if (!this.OutterBounds.Contains(screenPixels.X, screenPixels.Y) || this.Hidden)
                 return false;
-            if (!this.Hidden)
-                Toolbar.toolbarPressed = true;
             return true;
         }
 
@@ -48,8 +60,8 @@ namespace VirtualKeyboard
             Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
             if (ShouldTrigger(screenPixels, e.Button))
             {
-                if (Game1.input is SInputState input)
-                    input.OverrideButton(this.ButtonKey, true);
+                //if (Game1.input is SInputState input)
+                //    input.OverrideButton(this.ButtonKey, true);
             }
         }
 
@@ -90,8 +102,10 @@ namespace VirtualKeyboard
             if (this.Hidden)
                 return;
             float transparency = this.Transparency;
-            e.SpriteBatch.Draw(Game1.menuTexture, this.ButtonRectangle, Color.White);
-            e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, new Vector2(this.ButtonRectangle.X, this.ButtonRectangle.Y), Color.BurlyWood);
+            //e.SpriteBatch.Draw(Game1.menuTexture, this.ButtonRectangle, Color.White);
+            //IClickableMenu.drawTextureBox(e.SpriteBatch, Game1.menuTexture, new Rectangle(0, 256, 60, 60), x + offsetX, y, outerWidth, outerHeight + Game1.tileSize / 16, Color.White * alpha, drawShadow: drawShadow);
+            e.SpriteBatch.Draw(Game1.menuTexture, OutterBounds, new Rectangle(0, 256, 60, 60), Color.White);
+            e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, new Vector2(this.InnerBounds.X, this.InnerBounds.Y), Game1.textColor);
         }
     }
 }

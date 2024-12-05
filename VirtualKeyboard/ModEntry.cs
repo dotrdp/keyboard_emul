@@ -17,6 +17,7 @@ namespace VirtualKeyboard
         private ClickableTextureComponent? VirtualToggleButton;
         private int EnabledStage = 0;
         private int LastPressTick = 0;
+        private bool FirstRender = true;
 
         /*********
         ** Public methods
@@ -36,8 +37,8 @@ namespace VirtualKeyboard
             helper.WriteConfig<ModConfig>(this.ModConfig);
             helper.Events.Input.ButtonPressed += this.OnButtonPressed;
             helper.Events.Display.Rendered += this.Rendered;
-            Helper.Events.Display.MenuChanged += this.OnMenuChanged;
-            this.Helper.Events.Input.ButtonPressed += this.VirtualToggleButtonPressed;
+            helper.Events.Display.MenuChanged += this.OnMenuChanged;
+            helper.Events.Input.ButtonPressed += this.VirtualToggleButtonPressed;
         }
 
         private void VirtualToggleButtonPressed(object? sender, ButtonPressedEventArgs e)
@@ -46,7 +47,7 @@ namespace VirtualKeyboard
             if (e.Button == this.ModConfig.vToggle.key || ShouldTrigger(screenPixels))
             {
                 foreach (KeyButton keyButton in this.Buttons)
-                    keyButton.Hidden = Convert.ToBoolean(1 - this.EnabledStage);
+                    keyButton.Hidden = Convert.ToBoolean(this.EnabledStage);
                 this.EnabledStage = 1 - this.EnabledStage;
             }
         }
@@ -75,10 +76,22 @@ namespace VirtualKeyboard
         private void Rendered(object? sender, RenderedEventArgs e)
         {
             if (this.VirtualToggleButton == null) return;
-            ((ClickableComponent)this.VirtualToggleButton).bounds.X = 200;
-            ((ClickableComponent)this.VirtualToggleButton).bounds.Y = 12;
-            ((ClickableComponent)this.VirtualToggleButton).bounds.X = this.ModConfig.vToggle.rectangle.X;
-            ((ClickableComponent)this.VirtualToggleButton).bounds.Y = this.ModConfig.vToggle.rectangle.Y;
+
+            if (FirstRender)
+            {
+                int OffsetX = this.ModConfig.ButtonsOffset.X;
+                int OffsetY = this.ModConfig.ButtonsOffset.Y;
+                for (int index = 0; index < this.Buttons.Count; ++index)
+                {
+                    Buttons[index].CalcBounds(OffsetX, OffsetY);
+                    OffsetX = Buttons[index].OutterBounds.X + Buttons[index].OutterBounds.Width + 10;
+                }
+
+                FirstRender = false;
+            }
+
+            this.VirtualToggleButton.bounds.X = this.ModConfig.vToggle.rectangle.X;
+            this.VirtualToggleButton.bounds.Y = this.ModConfig.vToggle.rectangle.Y;
 
             float scale = 0.5f + this.EnabledStage * 0.5f;
             this.VirtualToggleButton.draw(e.SpriteBatch, Color.Multiply(Color.White, scale), 1E-06f, 0);

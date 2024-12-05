@@ -5,13 +5,15 @@ namespace VirtualKeyboard
 {
     internal class ModConfig
     {
-        public VirtualButton vToggle { get; set; } = new VirtualButton((SButton)0, new Rect(36, 12, 64, 64), 0.5f);
+        public Toggle vToggle { get; set; } = new Toggle((SButton)0, new Rect(36, 12, 64, 64));
+
+        public Rect ButtonsOffset = new Rect(36, 80, 0, 0);
         public VirtualButton[] Buttons { get; set; } = new VirtualButton[4]
         {
-              new VirtualButton((SButton) 80, new Rect(190, 80, 90, 90), 0.5f),
-              new VirtualButton((SButton) 73, new Rect(290, 80, 90, 90), 0.5f),
-              new VirtualButton((SButton) 79, new Rect(390, 80, 90, 90), 0.5f),
-              new VirtualButton((SButton) 81, new Rect(490, 80, 90, 90), 0.5f)
+              new VirtualButton((SButton) 80, 0.5f),
+              new VirtualButton((SButton) 73, 0.5f),
+              new VirtualButton((SButton) 79, 0.5f),
+              new VirtualButton((SButton) 81, 0.5f)
         };
         internal class Rect
         {
@@ -28,26 +30,30 @@ namespace VirtualKeyboard
                 this.Height = height;
             }
         }
-
-        internal class VirtualButton
+        internal class Toggle
         {
             public SButton key { get; set; }
-            public Rect rectangle { get; set; }
-            public float transparency { get; set; } = 0.5f;
-            public string command { get; set; }
-            public string? alias { get; set; } = null;
 
-            public VirtualButton(
-              SButton key,
-              Rect rectangle,
-              float transparency,
-              string command = "",
-              string? alias = null)
+            public Rect rectangle { get; set; }
+
+            public Toggle(SButton key, Rect rectangle)
             {
                 this.key = key;
                 this.rectangle = rectangle;
+            }
+        }
+        internal class VirtualButton
+        {
+            public SButton key { get; set; }
+            public float transparency { get; set; } = 0.5f;
+            public string alias { get; set; }
+            public VirtualButton(
+              SButton key,
+              float transparency,
+              string alias = "")
+            {
+                this.key = key;
                 this.transparency = transparency;
-                this.command = command;
                 this.alias = alias;
             }
         }
