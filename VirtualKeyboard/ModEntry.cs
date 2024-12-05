@@ -12,9 +12,11 @@ namespace VirtualKeyboard
     /// <summary>The mod entry point.</summary>
     internal sealed class ModEntry : Mod
     {
-        private ModConfig config_ = new ModConfig();
-        private List<KeyButton> buttons_ = new List<KeyButton>();
-        private ClickableTextureComponent? virtual_toggle_button_;
+        private ModConfig ModConfig = new ModConfig();
+        private List<KeyButton> Buttons = new List<KeyButton>();
+        private ClickableTextureComponent? VirtualToggleButton;
+        private int EnabledStage = 0;
+        private int LastPressTick = 0;
 
         /*********
         ** Public methods
@@ -23,16 +25,45 @@ namespace VirtualKeyboard
         /// <param name="helper">Provides simplified APIs for writing mods.</param>
         public override void Entry(IModHelper helper)
         {
-            this.config_ = this.Helper.ReadConfig<ModConfig>();
-            for (int index = 0; index < this.config_.buttons.Length; ++index)
+            this.ModConfig = Helper.ReadConfig<ModConfig>();
+            for (int index = 0; index < this.ModConfig.Buttons.Length; ++index)
             {
-                this.buttons_.Add(new KeyButton(helper, this.config_.buttons[index]));
+                this.Buttons.Add(new KeyButton(helper, this.ModConfig.Buttons[index]));
             }
-            Texture2D texture = Helper.ModContent.Load<Texture2D>("assets/togglebutton.png");
-            this.virtual_toggle_button_ = new ClickableTextureComponent(new Rectangle(64, 12, 128, 128), texture, new Rectangle(0, 0, 16, 16), 4f, false);
 
+            Texture2D texture = Helper.ModContent.Load<Texture2D>("assets/togglebutton.png");
+            this.VirtualToggleButton = new ClickableTextureComponent(new Rectangle(64, 12, 128, 128), texture, new Rectangle(0, 0, 16, 16), 4f, false);
+            helper.WriteConfig<ModConfig>(this.ModConfig);
             helper.Events.Input.ButtonPressed += this.OnButtonPressed;
             helper.Events.Display.Rendered += this.Rendered;
+            Helper.Events.Display.MenuChanged += this.OnMenuChanged;
+            this.Helper.Events.Input.ButtonPressed += this.VirtualToggleButtonPressed;
+        }
+
+        private void VirtualToggleButtonPressed(object? sender, ButtonPressedEventArgs e)
+        {
+            Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
+            if (e.Button == this.ModConfig.vToggle.key || ShouldTrigger(screenPixels))
+            {
+                foreach (KeyButton keyButton in this.Buttons)
+                    keyButton.Hidden = Convert.ToBoolean(1 - this.EnabledStage);
+                this.EnabledStage = 1 - this.EnabledStage;
+            }
+        }
+        private bool ShouldTrigger(Vector2 screenPixels)
+        {
+            if (this.VirtualToggleButton == null) return false;
+            int ticks = Game1.ticks;
+            if (ticks - this.LastPressTick <= 6 || !((ClickableComponent)this.VirtualToggleButton).containsPoint((int)screenPixels.X, (int)screenPixels.Y))
+                return false;
+            this.LastPressTick = ticks;
+            return true;
+        }
+        private void OnMenuChanged(object? sender, MenuChangedEventArgs e)
+        {
+            foreach (KeyButton keyButton in this.Buttons)
+                keyButton.Hidden = true;
+            this.EnabledStage = 0;
         }
 
         /*********
@@ -43,15 +74,14 @@ namespace VirtualKeyboard
         /// <param name="e">The event data.</param>
         private void Rendered(object? sender, RenderedEventArgs e)
         {
-            if (this.virtual_toggle_button_ == null) return;
-            ((ClickableComponent)this.virtual_toggle_button_).bounds.X = 200;
-            ((ClickableComponent)this.virtual_toggle_button_).bounds.Y = 12;
-            ((ClickableComponent)this.virtual_toggle_button_).bounds.X = this.config_.vToggle.rectangle.X;
-            ((ClickableComponent)this.virtual_toggle_button_).bounds.Y = this.config_.vToggle.rectangle.Y;
+            if (this.VirtualToggleButton == null) return;
+            ((ClickableComponent)this.VirtualToggleButton).bounds.X = 200;
+            ((ClickableComponent)this.VirtualToggleButton).bounds.Y = 12;
+            ((ClickableComponent)this.VirtualToggleButton).bounds.X = this.ModConfig.vToggle.rectangle.X;
+            ((ClickableComponent)this.VirtualToggleButton).bounds.Y = this.ModConfig.vToggle.rectangle.Y;
 
-            Game1.spriteBatch.End();
-            Game1.spriteBatch.Begin((SpriteSortMode)0, BlendState.AlphaBlend, SamplerState.PointClamp, (DepthStencilState)null, (RasterizerState)null, (Effect)null, new Matrix?(Matrix.CreateScale(1f)));
-            this.virtual_toggle_button_.draw(Game1.spriteBatch, Color.Multiply(Color.White, 1.0f), 1E-06f, 0);
+            float scale = 0.5f + this.EnabledStage * 0.5f;
+            this.VirtualToggleButton.draw(e.SpriteBatch, Color.Multiply(Color.White, scale), 1E-06f, 0);
         }
 
         /*********
