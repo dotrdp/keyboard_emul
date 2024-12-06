@@ -42,6 +42,9 @@ namespace VirtualKeyboard
 
         private void VirtualToggleButtonPressed(object? sender, ButtonPressedEventArgs e)
         {
+            // ignore if player hasn't loaded a save yet
+            if (!Context.IsWorldReady)
+                return;
             Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
             if (e.Button == this.ModConfig.vToggle.key || ShouldTrigger(screenPixels))
             {
@@ -74,19 +77,27 @@ namespace VirtualKeyboard
         /// <param name="e">The event data.</param>
         private void Rendered(object? sender, RenderedEventArgs e)
         {
+            // ignore if player hasn't loaded a save yet
+            if (!Context.IsWorldReady)
+                return;
+
             if (this.VirtualToggleButton == null) return;
 
             if (FirstRender)
             {
                 int OffsetX = this.ModConfig.ButtonsOffset.X;
                 int OffsetY = this.ModConfig.ButtonsOffset.Y;
+                bool all_calc = true;
                 for (int index = 0; index < this.Buttons.Count; ++index)
                 {
-                    Buttons[index].CalcBounds(OffsetX, OffsetY);
+                    if (!Buttons[index].CalcBounds(OffsetX, OffsetY))
+                    {
+                        all_calc = false;
+                        break;
+                    }
                     OffsetX = Buttons[index].OutterBounds.X + Buttons[index].OutterBounds.Width + 10;
                 }
-
-                FirstRender = false;
+                FirstRender = !all_calc;
             }
 
             this.VirtualToggleButton.bounds.X = this.ModConfig.vToggle.rectangle.X;

@@ -31,11 +31,15 @@ namespace VirtualKeyboard
             helper.Events.Input.ButtonPressed += this.EventInputButtonPressed;
         }
         
-        public void CalcBounds(int x, int y)
+        public bool CalcBounds(int x, int y)
         {
             this.OutterBounds.X = x;
             this.OutterBounds.Y = y;
 
+            if (Game1.smallFont == null)
+            {
+                return false;
+            }
             Vector2 bounds = Game1.smallFont.MeasureString(this.Alias);
             this.InnerBounds.X = OutterBounds.X + ButtonBorderWidth;
             this.InnerBounds.Y = OutterBounds.Y + ButtonBorderWidth;
@@ -44,6 +48,7 @@ namespace VirtualKeyboard
             
             this.OutterBounds.Width = InnerBounds.Width + ButtonBorderWidth * 2;
             this.OutterBounds.Height = InnerBounds.Height + ButtonBorderWidth * 2;
+            return true;
         }
         private bool ShouldTrigger(Vector2 screenPixels, SButton button)
         {
@@ -54,6 +59,9 @@ namespace VirtualKeyboard
 
         private void EventInputButtonPressed(object? sender, ButtonPressedEventArgs e)
         {
+            // ignore if player hasn't loaded a save yet
+            if (!Context.IsWorldReady)
+                return;
             if (this.Hidden)
                 return;
             Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
@@ -69,6 +77,9 @@ namespace VirtualKeyboard
 
         private void OnRendered(object? sender, RenderedEventArgs e)
         {
+            // ignore if player hasn't loaded a save yet
+            if (!Context.IsWorldReady)
+                return;
             if (this.Hidden)
                 return;
             float transparency = this.Transparency;
