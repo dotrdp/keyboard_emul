@@ -45,7 +45,8 @@ namespace VirtualKeyboard
             // ignore if player hasn't loaded a save yet
             if (!Context.IsWorldReady)
                 return;
-            Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
+            //Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
+            Vector2 screenPixels = e.Cursor.ScreenPixels;
             if (e.Button == this.ModConfig.vToggle.key || ShouldTrigger(screenPixels))
             {
                 foreach (KeyButton keyButton in this.Buttons)
@@ -100,8 +101,13 @@ namespace VirtualKeyboard
                 FirstRender = !all_calc;
             }
 
-            this.VirtualToggleButton.bounds.X = this.ModConfig.vToggle.rectangle.X;
-            this.VirtualToggleButton.bounds.Y = this.ModConfig.vToggle.rectangle.Y;
+            Vector2 UIScalePos = Utility.ModifyCoordinatesFromUIScale(new Vector2(this.ModConfig.vToggle.rectangle.X, this.ModConfig.vToggle.rectangle.Y));
+            this.VirtualToggleButton.bounds.X = (int)UIScalePos.X;
+            this.VirtualToggleButton.bounds.Y = (int)UIScalePos.Y;
+            this.VirtualToggleButton.bounds.Height = (int)Utility.ModifyCoordinateFromUIScale(this.ModConfig.vToggle.rectangle.Height);
+            this.VirtualToggleButton.bounds.Width = (int)Utility.ModifyCoordinateFromUIScale(this.ModConfig.vToggle.rectangle.Width);
+            this.VirtualToggleButton.scale = Utility.ModifyCoordinateFromUIScale(4.0f);
+            this.VirtualToggleButton.baseScale = this.VirtualToggleButton.scale;
 
             float scale = 0.5f + this.EnabledStage * 0.5f;
             this.VirtualToggleButton.draw(e.SpriteBatch, Color.Multiply(Color.White, scale), 1E-06f, 0);
