@@ -65,8 +65,7 @@ namespace VirtualKeyboard
                 return;
             if (this.Hidden)
                 return;
-            //Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
-            Vector2 screenPixels = e.Cursor.ScreenPixels;
+            Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
             if (ShouldTrigger(screenPixels, e.Button))
             {
                 MethodInfo? overrideButton = Game1.input.GetType().GetMethod("OverrideButton");
