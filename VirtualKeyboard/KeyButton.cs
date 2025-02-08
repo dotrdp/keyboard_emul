@@ -73,6 +73,7 @@ namespace VirtualKeyboard
                 if (overrideButton != null)
                 {
                     overrideButton.Invoke(Game1.input, new object[] { ButtonKey, true });
+                    this.Helper.Input.Suppress(SButton.MouseLeft);
                 }
             }
         }

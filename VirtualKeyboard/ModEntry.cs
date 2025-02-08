@@ -52,6 +52,7 @@ namespace VirtualKeyboard
                 foreach (KeyButton keyButton in this.Buttons)
                     keyButton.Hidden = Convert.ToBoolean(this.EnabledStage);
                 this.EnabledStage = 1 - this.EnabledStage;
+                this.Helper.Input.Suppress(SButton.MouseLeft);
             }
         }
         private bool ShouldTrigger(Vector2 screenPixels)
