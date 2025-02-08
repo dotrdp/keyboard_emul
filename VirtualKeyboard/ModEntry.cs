@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
@@ -18,6 +19,11 @@ namespace VirtualKeyboard
         private int EnabledStage = 0;
         private int LastPressTick = 0;
         private bool FirstRender = true;
+        private bool ToolbarAlignTop = false;
+        private bool ToolbarVertical = false;
+        private int ToolbarItemSlotSize = 0;
+        private int ToolbarHeight = 0;
+        private Vector2 VirtualToggleButtonPosition = new Vector2(0, 0);
 
         /*********
         ** Public methods
@@ -71,6 +77,97 @@ namespace VirtualKeyboard
             this.EnabledStage = 0;
         }
 
+        private void CalVirtualToggleButtonPosition()
+        {
+            bool RecalButtonPosition = FirstRender;
+            if (Constants.TargetPlatform == GamePlatform.Android)
+            {
+                Type Game1OptionType = Game1.options.GetType();
+                FieldInfo? verticalToolbarField = Game1OptionType.GetField("verticalToolbar");
+
+                if (verticalToolbarField != null)
+                {
+                    bool currentToolbarVertical = Convert.ToBoolean(verticalToolbarField.GetValue(Game1.options));
+                    RecalButtonPosition |= (ToolbarVertical != currentToolbarVertical);
+                    ToolbarVertical = currentToolbarVertical;
+                }
+
+                foreach (IClickableMenu onScreenMenu in Game1.onScreenMenus)
+                {
+                    if (onScreenMenu is Toolbar)
+                    {
+                        Toolbar toolbar = (Toolbar)onScreenMenu;
+                        Type ToolbarType = toolbar.GetType();
+                        FieldInfo? alignTopField = ToolbarType.GetField("alignTop");
+                        if (alignTopField != null)
+                        {
+                            bool currentAlignTop = Convert.ToBoolean(alignTopField.GetValue(toolbar));
+                            RecalButtonPosition |= (ToolbarAlignTop != currentAlignTop);
+                            ToolbarAlignTop = currentAlignTop;
+                        }
+
+                        PropertyInfo? itemSlotSizeProperty = ToolbarType.GetProperty("itemSlotSize");
+                        if (itemSlotSizeProperty != null)
+                        {
+                            int currentItemSlotSize = Convert.ToInt32(itemSlotSizeProperty.GetValue(toolbar));
+                            RecalButtonPosition |= (ToolbarItemSlotSize != currentItemSlotSize);
+                            ToolbarItemSlotSize = currentItemSlotSize;
+                        }
+
+                        //FieldInfo? toolbarHeightField = ToolbarType.GetField("toolbarHeight");
+                        //if (toolbarHeightField != null)
+                        //{
+                        //    int currentToolbarHeight = Convert.ToInt32(toolbarHeightField.GetValue(toolbar));
+                        //    RecalButtonPosition |= (ToolbarHeight != currentToolbarHeight);
+                        //    ToolbarHeight = currentToolbarHeight;
+                            
+                        //}
+                        ToolbarHeight = this.Helper.Reflection.GetField<int>(toolbar, "toolbarHeight").GetValue();
+
+                        break;
+                    }
+                }
+            }
+
+            if (RecalButtonPosition)
+            {
+                int currentToolbarPaddingX = 0;
+                Type Game1Type = typeof(Game1);
+                FieldInfo? toolbarPaddingXField = Game1Type.GetField("toolbarPaddingX", BindingFlags.Public | BindingFlags.Static);
+                if (toolbarPaddingXField != null)
+                {
+                    currentToolbarPaddingX = Convert.ToInt32(toolbarPaddingXField.GetValue(null));
+                }
+
+                int OffsetX = this.ModConfig.vToggle.rectangle.X;
+                if (ToolbarVertical)
+                {
+                    OffsetX += currentToolbarPaddingX + ToolbarItemSlotSize + 20;
+                }
+                VirtualToggleButtonPosition.X = OffsetX;
+
+                int OffsetY = this.ModConfig.vToggle.rectangle.Y;
+                if (ToolbarAlignTop && !ToolbarVertical)
+                {
+                    OffsetY += ToolbarHeight + 16;
+                }
+                VirtualToggleButtonPosition.Y = OffsetY;
+                OffsetY += this.ModConfig.vToggle.rectangle.Height + 4;
+
+                bool all_calc = true;
+                for (int index = 0; index < this.Buttons.Count; ++index)
+                {
+                    if (!Buttons[index].CalcBounds(OffsetX, OffsetY))
+                    {
+                        all_calc = false;
+                        break;
+                    }
+                    OffsetX = Buttons[index].OutterBounds.X + Buttons[index].OutterBounds.Width + 10;
+                }
+                FirstRender = !all_calc;
+            }
+        }
+
         /*********
         ** Private methods
         *********/
@@ -86,24 +183,9 @@ namespace VirtualKeyboard
             if (this.VirtualToggleButton == null)
                 return;
 
-            if (FirstRender)
-            {
-                int OffsetX = this.ModConfig.vToggle.rectangle.X;
-                int OffsetY = this.ModConfig.vToggle.rectangle.Y + this.ModConfig.vToggle.rectangle.Height + 4;
-                bool all_calc = true;
-                for (int index = 0; index < this.Buttons.Count; ++index)
-                {
-                    if (!Buttons[index].CalcBounds(OffsetX, OffsetY))
-                    {
-                        all_calc = false;
-                        break;
-                    }
-                    OffsetX = Buttons[index].OutterBounds.X + Buttons[index].OutterBounds.Width + 10;
-                }
-                FirstRender = !all_calc;
-            }
+            CalVirtualToggleButtonPosition();
 
-            Vector2 UIScalePos = Utility.ModifyCoordinatesFromUIScale(new Vector2(this.ModConfig.vToggle.rectangle.X, this.ModConfig.vToggle.rectangle.Y));
+            Vector2 UIScalePos = Utility.ModifyCoordinatesFromUIScale(VirtualToggleButtonPosition);
             this.VirtualToggleButton.bounds.X = (int)UIScalePos.X;
             this.VirtualToggleButton.bounds.Y = (int)UIScalePos.Y;
             this.VirtualToggleButton.bounds.Height = (int)Utility.ModifyCoordinateFromUIScale(this.ModConfig.vToggle.rectangle.Height);
