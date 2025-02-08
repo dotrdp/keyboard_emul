@@ -83,12 +83,13 @@ namespace VirtualKeyboard
             if (!Context.IsWorldReady)
                 return;
 
-            if (this.VirtualToggleButton == null) return;
+            if (this.VirtualToggleButton == null)
+                return;
 
             if (FirstRender)
             {
-                int OffsetX = this.ModConfig.ButtonsOffset.X;
-                int OffsetY = this.ModConfig.ButtonsOffset.Y;
+                int OffsetX = this.ModConfig.vToggle.rectangle.X;
+                int OffsetY = this.ModConfig.vToggle.rectangle.Y + this.ModConfig.vToggle.rectangle.Height + 4;
                 bool all_calc = true;
                 for (int index = 0; index < this.Buttons.Count; ++index)
                 {

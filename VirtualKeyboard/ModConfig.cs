@@ -5,9 +5,7 @@ namespace VirtualKeyboard
 {
     internal class ModConfig
     {
-        public Toggle vToggle { get; set; } = new Toggle((SButton)0, new Rect(36, 12, 64, 64));
-
-        public Rect ButtonsOffset = new Rect(36, 80, 0, 0);
+        public Toggle vToggle { get; set; } = new Toggle((SButton)0, new Rect(206, 12, 64, 64));
         public VirtualButton[] Buttons { get; set; } = new VirtualButton[4]
         {
               new VirtualButton((SButton) 80, 0.5f),

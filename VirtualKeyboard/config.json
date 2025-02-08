@@ -1,0 +1,33 @@
+{
+  "vToggle": {
+    "key": "None",
+    "rectangle": {
+      "X": 206,
+      "Y": 12,
+      "Width": 64,
+      "Height": 64
+    }
+  },
+  "Buttons": [
+    {
+      "key": "P",
+      "transparency": 0.5,
+      "alias": ""
+    },
+    {
+      "key": "I",
+      "transparency": 0.5,
+      "alias": ""
+    },
+    {
+      "key": "O",
+      "transparency": 0.5,
+      "alias": ""
+    },
+    {
+      "key": "Q",
+      "transparency": 0.5,
+      "alias": ""
+    }
+  ]
+}
