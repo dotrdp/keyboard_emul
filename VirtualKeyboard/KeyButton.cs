@@ -3,12 +3,13 @@ using StardewModdingAPI.Events;
 using StardewModdingAPI;
 using StardewValley;
 using System.Reflection;
+using Microsoft.Xna.Framework.Graphics;
 
 namespace VirtualKeyboard
 {
     internal class KeyButton
     {
-        public const int ButtonBorderWidth = 4 * Game1.pixelZoom;
+        public const int ButtonBorderWidth = 4;
         public Rectangle OutterBounds;
         private Rectangle InnerBounds;
         private readonly SButton ButtonKey;
@@ -30,7 +31,7 @@ namespace VirtualKeyboard
             helper.Events.Display.Rendered += this.OnRendered;
             helper.Events.Input.ButtonPressed += this.EventInputButtonPressed;
         }
-        
+
         public bool CalcBounds(int x, int y)
         {
             this.OutterBounds.X = x;
@@ -45,7 +46,7 @@ namespace VirtualKeyboard
             this.InnerBounds.Y = OutterBounds.Y + ButtonBorderWidth;
             this.InnerBounds.Width = (int)bounds.X + 1;
             this.InnerBounds.Height = (int)bounds.Y + 1;
-            
+
             this.OutterBounds.Width = InnerBounds.Width + ButtonBorderWidth * 2;
             this.OutterBounds.Height = InnerBounds.Height + ButtonBorderWidth * 2;
             return true;
@@ -64,7 +65,8 @@ namespace VirtualKeyboard
                 return;
             if (this.Hidden)
                 return;
-            Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
+            //Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
+            Vector2 screenPixels = e.Cursor.ScreenPixels;
             if (ShouldTrigger(screenPixels, e.Button))
             {
                 MethodInfo? overrideButton = Game1.input.GetType().GetMethod("OverrideButton");
@@ -82,9 +84,22 @@ namespace VirtualKeyboard
                 return;
             if (this.Hidden)
                 return;
+
             float transparency = this.Transparency;
-            e.SpriteBatch.Draw(Game1.menuTexture, OutterBounds, new Rectangle(0, 256, 60, 60), Color.White);
-            e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, new Vector2(this.InnerBounds.X, this.InnerBounds.Y), Game1.textColor);
+
+            //e.SpriteBatch.Draw(Game1.menuTexture, OutterBounds, new Rectangle(0, 256, 60, 60), Color.White);
+            Vector2 UIScaleOutterBounds = Utility.ModifyCoordinatesFromUIScale(new Vector2(this.OutterBounds.X, this.OutterBounds.Y));
+            Rectangle UIScaleOutterBoundsRectangle;
+            UIScaleOutterBoundsRectangle.X = (int)UIScaleOutterBounds.X;
+            UIScaleOutterBoundsRectangle.Y = (int)UIScaleOutterBounds.Y;
+            UIScaleOutterBoundsRectangle.Height = (int)Utility.ModifyCoordinateFromUIScale(OutterBounds.Height);
+            UIScaleOutterBoundsRectangle.Width = (int)Utility.ModifyCoordinateFromUIScale(OutterBounds.Width);
+            e.SpriteBatch.Draw(Game1.menuTexture, UIScaleOutterBoundsRectangle, new Rectangle(0, 256, 60, 60), Color.White, 0, new Vector2(0, 0), SpriteEffects.None, 1E-06f);
+
+            //e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, new Vector2(this.InnerBounds.X, this.InnerBounds.Y), Game1.textColor);
+            float UIScale = Utility.ModifyCoordinateFromUIScale(1.0f);
+            Vector2 UIScaleInnerBounds = Utility.ModifyCoordinatesFromUIScale(new Vector2(this.InnerBounds.X, this.InnerBounds.Y));
+            e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, UIScaleInnerBounds, Game1.textColor, 0, new Vector2(0, 0), UIScale, SpriteEffects.None, 1E-06f);
         }
     }
 }
