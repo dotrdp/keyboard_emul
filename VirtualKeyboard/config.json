@@ -8,6 +8,7 @@
       "Height": 64
     }
   },
+  "ButtonScale": 1.0,
   "Buttons": [
     {
       "key": "P",

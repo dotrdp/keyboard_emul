@@ -14,8 +14,9 @@ namespace VirtualKeyboard
         private Rectangle InnerBounds;
         private readonly SButton ButtonKey;
         private readonly float Transparency;
-        private readonly string Alias;
+        private string Alias;
         private readonly IModHelper Helper;
+        private readonly float ButtonScale;
         public bool Hidden;
 
         public KeyButton(IModHelper helper, ModConfig.VirtualButton buttonDefine)
@@ -28,6 +29,8 @@ namespace VirtualKeyboard
             this.Transparency = buttonDefine.transparency;
             this.Helper = helper;
 
+            this.ButtonScale = Helper.ReadConfig<ModConfig>().ButtonScale;
+            
             helper.Events.Display.Rendered += this.OnRendered;
             helper.Events.Input.ButtonPressed += this.EventInputButtonPressed;
         }
@@ -41,11 +44,27 @@ namespace VirtualKeyboard
             {
                 return false;
             }
+
             Vector2 bounds = Game1.smallFont.MeasureString(this.Alias);
+            while (bounds.X < bounds.Y)
+            {
+                string padding_alias = " " + this.Alias + " ";
+                Vector2 padding_bounds = Game1.smallFont.MeasureString(padding_alias);
+                if (padding_bounds.X < padding_bounds.Y)
+                {
+                    this.Alias = padding_alias;
+                    bounds = padding_bounds;
+                }
+                else
+                {
+                    break;
+                }
+            }
+
             this.InnerBounds.X = OutterBounds.X + ButtonBorderWidth;
             this.InnerBounds.Y = OutterBounds.Y + ButtonBorderWidth;
-            this.InnerBounds.Width = (int)bounds.X + 1;
-            this.InnerBounds.Height = (int)bounds.Y + 1;
+            this.InnerBounds.Width = (int)(bounds.X * this.ButtonScale) + 1;
+            this.InnerBounds.Height = (int)(bounds.Y * this.ButtonScale) + 1;
 
             this.OutterBounds.Width = InnerBounds.Width + ButtonBorderWidth * 2;
             this.OutterBounds.Height = InnerBounds.Height + ButtonBorderWidth * 2;
@@ -97,7 +116,7 @@ namespace VirtualKeyboard
             e.SpriteBatch.Draw(Game1.menuTexture, UIScaleOutterBoundsRectangle, new Rectangle(0, 256, 60, 60), Color.White, 0, new Vector2(0, 0), SpriteEffects.None, 1E-06f);
 
             //e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, new Vector2(this.InnerBounds.X, this.InnerBounds.Y), Game1.textColor);
-            float UIScale = Utility.ModifyCoordinateFromUIScale(1.0f);
+            float UIScale = Utility.ModifyCoordinateFromUIScale(this.ButtonScale);
             Vector2 UIScaleInnerBounds = Utility.ModifyCoordinatesFromUIScale(new Vector2(this.InnerBounds.X, this.InnerBounds.Y));
             e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, UIScaleInnerBounds, Game1.textColor, 0, new Vector2(0, 0), UIScale, SpriteEffects.None, 1E-06f);
         }
