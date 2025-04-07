@@ -134,7 +134,7 @@ default config.json may like this:
 
 - if you want add new line button, just add new array in "Buttons"
 ```json
-﻿﻿  "Buttons": [
+﻿  "Buttons": [
     [
       {
         "key": "P",
@@ -150,16 +150,6 @@ default config.json may like this:
       },
       {
         "key": "Q",
-        "alias": ""
-      }
-    ],
-    [
-      {
-        "key": "R",
-        "alias": ""
-      },
-      {
-        "key": "S",
         "alias": ""
       }
     ]
