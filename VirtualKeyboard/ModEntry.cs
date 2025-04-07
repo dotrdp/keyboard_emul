@@ -14,7 +14,7 @@ namespace VirtualKeyboard
     internal sealed class ModEntry : Mod
     {
         private ModConfig ModConfig = new ModConfig();
-        private List<KeyButton> Buttons = new List<KeyButton>();
+        private List<List<KeyButton>> Buttons = new List<List<KeyButton>>();
         private ClickableTextureComponent? VirtualToggleButton;
         private int EnabledStage = 0;
         private int LastPressTick = 0;
@@ -33,14 +33,20 @@ namespace VirtualKeyboard
         public override void Entry(IModHelper helper)
         {
             this.ModConfig = Helper.ReadConfig<ModConfig>();
-            for (int index = 0; index < this.ModConfig.Buttons.Length; ++index)
+            int buttonsLineNumber = this.ModConfig.Buttons.Length;
+            for (int line = 0; line < buttonsLineNumber; line++)
             {
-                this.Buttons.Add(new KeyButton(helper, this.ModConfig.Buttons[index]));
+                this.Buttons.Add(new List<KeyButton>());
+                for (int index = 0; index < this.ModConfig.Buttons[line].Length; ++index)
+                {
+                    this.Buttons[line].Add(new KeyButton(helper, this.ModConfig.Buttons[line][index]));
+                }
             }
 
             Texture2D texture = helper.ModContent.Load<Texture2D>("assets/togglebutton.png");
             this.VirtualToggleButton = new ClickableTextureComponent(new Rectangle(this.ModConfig.vToggle.rectangle.X, this.ModConfig.vToggle.rectangle.Y, this.ModConfig.vToggle.rectangle.Width, this.ModConfig.vToggle.rectangle.Height), texture, new Rectangle(0, 0, 16, 16), 4f, false);
-            //helper.WriteConfig<ModConfig>(this.ModConfig);
+
+            helper.WriteConfig<ModConfig>(this.ModConfig);
             helper.Events.Display.Rendered += this.Rendered;
             helper.Events.Display.MenuChanged += this.OnMenuChanged;
             helper.Events.Input.ButtonPressed += this.VirtualToggleButtonPressed;
@@ -55,8 +61,9 @@ namespace VirtualKeyboard
             Vector2 screenPixels = e.Cursor.ScreenPixels;
             if (e.Button == this.ModConfig.vToggle.key || ShouldTrigger(screenPixels))
             {
-                foreach (KeyButton keyButton in this.Buttons)
-                    keyButton.Hidden = Convert.ToBoolean(this.EnabledStage);
+                foreach (List<KeyButton> keyButtonList in this.Buttons)
+                    foreach (KeyButton keyButton in keyButtonList)
+                        keyButton.Hidden = Convert.ToBoolean(this.EnabledStage);
                 this.EnabledStage = 1 - this.EnabledStage;
                 this.Helper.Input.Suppress(SButton.MouseLeft);
             }
@@ -72,8 +79,9 @@ namespace VirtualKeyboard
         }
         private void OnMenuChanged(object? sender, MenuChangedEventArgs e)
         {
-            foreach (KeyButton keyButton in this.Buttons)
-                keyButton.Hidden = true;
+            foreach (List<KeyButton> keyButtonList in this.Buttons)
+                foreach (KeyButton keyButton in keyButtonList)
+                    keyButton.Hidden = true;
             this.EnabledStage = 0;
         }
 
@@ -120,7 +128,6 @@ namespace VirtualKeyboard
                         //    int currentToolbarHeight = Convert.ToInt32(toolbarHeightField.GetValue(toolbar));
                         //    RecalButtonPosition |= (ToolbarHeight != currentToolbarHeight);
                         //    ToolbarHeight = currentToolbarHeight;
-                            
                         //}
                         ToolbarHeight = this.Helper.Reflection.GetField<int>(toolbar, "toolbarHeight").GetValue();
 
@@ -155,14 +162,19 @@ namespace VirtualKeyboard
                 OffsetY += this.ModConfig.vToggle.rectangle.Height + 4;
 
                 bool all_calc = true;
-                for (int index = 0; index < this.Buttons.Count; ++index)
+                for (int line = 0; line < this.Buttons.Count; ++line)
                 {
-                    if (!Buttons[index].CalcBounds(OffsetX, OffsetY))
+                    int LineOffsetX = OffsetX;
+                    for (int index = 0; index < this.Buttons[line].Count; ++index)
                     {
-                        all_calc = false;
-                        break;
+                        if (!Buttons[line][index].CalcBounds(LineOffsetX, OffsetY))
+                        {
+                            all_calc = false;
+                            break;
+                        }
+                        LineOffsetX = Buttons[line][index].OutterBounds.X + Buttons[line][index].OutterBounds.Width + 10;
                     }
-                    OffsetX = Buttons[index].OutterBounds.X + Buttons[index].OutterBounds.Width + 10;
+                    OffsetY = Buttons[line][0].OutterBounds.Y + Buttons[line][0].OutterBounds.Height + 10;
                 }
                 FirstRender = !all_calc;
             }

@@ -2,7 +2,7 @@
   "vToggle": {
     "key": "None",
     "rectangle": {
-      "X": 206,
+      "X": 36,
       "Y": 12,
       "Width": 64,
       "Height": 64
@@ -10,25 +10,11 @@
   },
   "ButtonScale": 1.0,
   "Buttons": [
-    {
-      "key": "P",
-      "transparency": 0.5,
-      "alias": ""
-    },
-    {
-      "key": "I",
-      "transparency": 0.5,
-      "alias": ""
-    },
-    {
-      "key": "O",
-      "transparency": 0.5,
-      "alias": ""
-    },
-    {
-      "key": "Q",
-      "transparency": 0.5,
-      "alias": ""
-    }
+    [
+      { "key": "P", "alias": "" },
+      { "key": "I", "alias": "" },
+      { "key": "O", "alias": "" },
+      { "key": "Q", "alias": "" }
+    ]
   ]
 }

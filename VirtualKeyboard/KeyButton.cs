@@ -24,9 +24,6 @@ namespace VirtualKeyboard
             this.Hidden = true;
             this.ButtonKey = buttonDefine.key;
             this.Alias = buttonDefine.alias != "" ? buttonDefine.alias : this.ButtonKey.ToString();
-            if ((double)buttonDefine.transparency <= 0.0099999997764825821 || (double)buttonDefine.transparency > 1.0)
-                buttonDefine.transparency = 0.5f;
-            this.Transparency = buttonDefine.transparency;
             this.Helper = helper;
 
             this.ButtonScale = Helper.ReadConfig<ModConfig>().ButtonScale;
@@ -103,8 +100,6 @@ namespace VirtualKeyboard
                 return;
             if (this.Hidden)
                 return;
-
-            float transparency = this.Transparency;
 
             //e.SpriteBatch.Draw(Game1.menuTexture, OutterBounds, new Rectangle(0, 256, 60, 60), Color.White);
             Vector2 UIScaleOutterBounds = Utility.ModifyCoordinatesFromUIScale(new Vector2(this.OutterBounds.X, this.OutterBounds.Y));

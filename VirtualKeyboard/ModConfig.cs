@@ -7,13 +7,16 @@ namespace VirtualKeyboard
     {
         public Toggle vToggle { get; set; } = new Toggle((SButton)0, new Rect(Constants.TargetPlatform == GamePlatform.Android ? 96 : 36, 12, 64, 64));
         public float ButtonScale { get; set; } = 1.0f;
-        public VirtualButton[] Buttons { get; set; } = new VirtualButton[4]
+        public VirtualButton[][] Buttons { get; set; } = new VirtualButton[][]
         {
-              new VirtualButton((SButton) 80, 0.5f),
-              new VirtualButton((SButton) 73, 0.5f),
-              new VirtualButton((SButton) 79, 0.5f),
-              new VirtualButton((SButton) 81, 0.5f)
+            new VirtualButton[]{
+              new VirtualButton((SButton) 80),
+              new VirtualButton((SButton) 73),
+              new VirtualButton((SButton) 79),
+              new VirtualButton((SButton) 81)
+            }
         };
+
         internal class Rect
         {
             public int X;
@@ -44,15 +47,12 @@ namespace VirtualKeyboard
         internal class VirtualButton
         {
             public SButton key { get; set; }
-            public float transparency { get; set; } = 0.5f;
             public string alias { get; set; }
             public VirtualButton(
               SButton key,
-              float transparency,
               string alias = "")
             {
                 this.key = key;
-                this.transparency = transparency;
                 this.alias = alias;
             }
         }
