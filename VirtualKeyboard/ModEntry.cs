@@ -40,7 +40,7 @@ namespace VirtualKeyboard
                 this.Buttons.Add(new List<KeyButton>());
                 for (int index = 0; index < this.ModConfig.Buttons[line].Length; ++index)
                 {
-                    this.Buttons[line].Add(new KeyButton(helper, this.ModConfig.Buttons[line][index]));
+                    this.Buttons[line].Add(new KeyButton(helper, this.ModConfig.Buttons[line][index], this.ModConfig.AboveMenu));
                 }
             }
 
@@ -48,7 +48,14 @@ namespace VirtualKeyboard
             this.VirtualToggleButton = new ClickableTextureComponent(new Rectangle(this.ModConfig.vToggle.rectangle.X, this.ModConfig.vToggle.rectangle.Y, this.ModConfig.vToggle.rectangle.Width, this.ModConfig.vToggle.rectangle.Height), texture, new Rectangle(0, 0, 16, 16), 4f, false);
 
             helper.WriteConfig<ModConfig>(this.ModConfig);
-            helper.Events.Display.Rendered += this.Rendered;
+            if (this.ModConfig.AboveMenu == 0)
+            {
+                helper.Events.Display.Rendered += this.Rendered;
+            }
+            else
+            {
+                helper.Events.Display.RenderedActiveMenu += this.OnRenderedActiveMenu;
+            }
             helper.Events.Display.MenuChanged += this.OnMenuChanged;
             helper.Events.Input.ButtonPressed += this.VirtualToggleButtonPressed;
         }
@@ -59,7 +66,7 @@ namespace VirtualKeyboard
             if (!Context.IsWorldReady)
                 return;
             // ignore if menu open
-            if (EnableMenu)
+            if (EnableMenu && this.ModConfig.AboveMenu == 0)
                 return;
             //Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
             Vector2 screenPixels = e.Cursor.ScreenPixels;
@@ -192,6 +199,29 @@ namespace VirtualKeyboard
         /// <param name="sender">The event sender.</param>
         /// <param name="e">The event data.</param>
         private void Rendered(object? sender, RenderedEventArgs e)
+        {
+            // ignore if player hasn't loaded a save yet
+            if (!Context.IsWorldReady)
+                return;
+
+            if (this.VirtualToggleButton == null)
+                return;
+
+            CalVirtualToggleButtonPosition();
+
+            Vector2 UIScalePos = Utility.ModifyCoordinatesFromUIScale(VirtualToggleButtonPosition);
+            this.VirtualToggleButton.bounds.X = (int)UIScalePos.X;
+            this.VirtualToggleButton.bounds.Y = (int)UIScalePos.Y;
+            this.VirtualToggleButton.bounds.Height = (int)Utility.ModifyCoordinateFromUIScale(this.ModConfig.vToggle.rectangle.Height);
+            this.VirtualToggleButton.bounds.Width = (int)Utility.ModifyCoordinateFromUIScale(this.ModConfig.vToggle.rectangle.Width);
+            this.VirtualToggleButton.scale = Utility.ModifyCoordinateFromUIScale(4.0f);
+            this.VirtualToggleButton.baseScale = this.VirtualToggleButton.scale;
+
+            float scale = 0.5f + this.EnabledStage * 0.5f;
+            this.VirtualToggleButton.draw(e.SpriteBatch, Color.Multiply(Color.White, scale), 1E-06f, 0);
+        }
+
+        private void OnRenderedActiveMenu(object? sender, RenderedActiveMenuEventArgs e)
         {
             // ignore if player hasn't loaded a save yet
             if (!Context.IsWorldReady)
