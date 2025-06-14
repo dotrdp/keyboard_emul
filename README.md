@@ -66,7 +66,7 @@ default config.json may like this:
 
 - if you want change button, you can change "Buttons"-"key", all support key you can find here [Enum Keys](https://docs.monogame.net/api/Microsoft.Xna.Framework.Input.Keys.html)
 ```json
-﻿  "Buttons": [
+   "Buttons": [
     [
       {
         "key": "M",
@@ -102,7 +102,7 @@ default config.json may like this:
 
 - if you want add button, just add struct in array
 ```json
-﻿  "Buttons": [
+   "Buttons": [
     [
       {
         "key": "P",
@@ -134,7 +134,7 @@ default config.json may like this:
 
 - if you want add new line button, just add new array in "Buttons"
 ```json
-﻿  "Buttons": [
+   "Buttons": [
     [
       {
         "key": "P",
@@ -156,7 +156,7 @@ default config.json may like this:
   ]
 ```
 
-- if ﻿you want change toggle button positoin, edit "vToggle"-"rectangle". default positoin X(96) is suit for my android, you should change this for your device. X(36) is good for windows.
+- if you want change toggle button positoin, edit "vToggle"-"rectangle". default positoin X(96) is suit for my android, you should change this for your device. X(36) is good for windows.
 ```json
    "vToggle": {
     "key": "None",
@@ -174,6 +174,13 @@ default config.json may like this:
   "ButtonScale": 1.0
 ```
 
+- you can let button show above game ui(such as inventory) by edit "AboveMenu". default value is 0.
+  - 0: game menu cover button.
+  - 1:  button above game ui
+```json
+  "AboveMenu": 0
+```
+
 ## Compatibility
 - Work with [SMAPI](https://smapi.io/) 4.1.10 with Stardew Valley 1.6.15 on Windows, other version not test.
-- Work with [SMAPILoader](https://github.com/NRTnarathip/SMAPILoader) ﻿1.1.4 with Stardew Valley 1.6.15 on Android
+- Work with [SMAPILoader](https://github.com/NRTnarathip/SMAPILoader) 1.1.4 with Stardew Valley 1.6.15 on Android
