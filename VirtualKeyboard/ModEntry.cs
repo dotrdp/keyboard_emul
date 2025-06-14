@@ -24,6 +24,7 @@ namespace VirtualKeyboard
         private int ToolbarItemSlotSize = 0;
         private int ToolbarHeight = 0;
         private Vector2 VirtualToggleButtonPosition = new Vector2(0, 0);
+        private bool EnableMenu = false;
 
         /*********
         ** Public methods
@@ -57,6 +58,9 @@ namespace VirtualKeyboard
             // ignore if player hasn't loaded a save yet
             if (!Context.IsWorldReady)
                 return;
+            // ignore if menu open
+            if (EnableMenu)
+                return;
             //Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
             Vector2 screenPixels = e.Cursor.ScreenPixels;
             if (e.Button == this.ModConfig.vToggle.key || ShouldTrigger(screenPixels))
@@ -83,6 +87,7 @@ namespace VirtualKeyboard
                 foreach (KeyButton keyButton in keyButtonList)
                     keyButton.Hidden = true;
             this.EnabledStage = 0;
+            EnableMenu = e.NewMenu != null;
         }
 
         private void CalVirtualToggleButtonPosition()
