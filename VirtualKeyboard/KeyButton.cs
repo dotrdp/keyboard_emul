@@ -18,6 +18,7 @@ namespace VirtualKeyboard
         private readonly IModHelper Helper;
         private readonly float ButtonScale;
         public bool Hidden;
+        public int AboveMenu;
 
         public KeyButton(IModHelper helper, ModConfig.VirtualButton buttonDefine, int AboveMenu)
         {
@@ -27,8 +28,8 @@ namespace VirtualKeyboard
             this.Helper = helper;
 
             this.ButtonScale = Helper.ReadConfig<ModConfig>().ButtonScale;
-
-            if (AboveMenu == 0)
+            this.AboveMenu = AboveMenu;
+            if (this.AboveMenu == 0)
             {
                 helper.Events.Display.Rendered += this.OnRendered;
             }
@@ -132,17 +133,12 @@ namespace VirtualKeyboard
                 return;
 
             //e.SpriteBatch.Draw(Game1.menuTexture, OutterBounds, new Rectangle(0, 256, 60, 60), Color.White);
-            Vector2 UIScaleOutterBounds = Utility.ModifyCoordinatesFromUIScale(new Vector2(this.OutterBounds.X, this.OutterBounds.Y));
-            Rectangle UIScaleOutterBoundsRectangle;
-            UIScaleOutterBoundsRectangle.X = (int)UIScaleOutterBounds.X;
-            UIScaleOutterBoundsRectangle.Y = (int)UIScaleOutterBounds.Y;
-            UIScaleOutterBoundsRectangle.Height = (int)Utility.ModifyCoordinateFromUIScale(OutterBounds.Height);
-            UIScaleOutterBoundsRectangle.Width = (int)Utility.ModifyCoordinateFromUIScale(OutterBounds.Width);
+            Rectangle UIScaleOutterBoundsRectangle = OutterBounds;
             e.SpriteBatch.Draw(Game1.menuTexture, UIScaleOutterBoundsRectangle, new Rectangle(0, 256, 60, 60), Color.White, 0, new Vector2(0, 0), SpriteEffects.None, 1E-06f);
 
             //e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, new Vector2(this.InnerBounds.X, this.InnerBounds.Y), Game1.textColor);
-            float UIScale = Utility.ModifyCoordinateFromUIScale(this.ButtonScale);
-            Vector2 UIScaleInnerBounds = Utility.ModifyCoordinatesFromUIScale(new Vector2(this.InnerBounds.X, this.InnerBounds.Y));
+            float UIScale = this.ButtonScale;
+            Vector2 UIScaleInnerBounds = new Vector2(this.InnerBounds.X, this.InnerBounds.Y);
             e.SpriteBatch.DrawString(Game1.smallFont, this.Alias, UIScaleInnerBounds, Game1.textColor, 0, new Vector2(0, 0), UIScale, SpriteEffects.None, 1E-06f);
         }
     }

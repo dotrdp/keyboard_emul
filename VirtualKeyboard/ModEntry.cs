@@ -23,7 +23,7 @@ namespace VirtualKeyboard
         private bool ToolbarVertical = false;
         private int ToolbarItemSlotSize = 0;
         private int ToolbarHeight = 0;
-        private Vector2 VirtualToggleButtonPosition = new Vector2(0, 0);
+        private Rectangle VirtualToggleButtonBound;
         private bool EnableMenu = false;
 
         /*********
@@ -45,7 +45,8 @@ namespace VirtualKeyboard
             }
 
             Texture2D texture = helper.ModContent.Load<Texture2D>("assets/togglebutton.png");
-            this.VirtualToggleButton = new ClickableTextureComponent(new Rectangle(this.ModConfig.vToggle.rectangle.X, this.ModConfig.vToggle.rectangle.Y, this.ModConfig.vToggle.rectangle.Width, this.ModConfig.vToggle.rectangle.Height), texture, new Rectangle(0, 0, 16, 16), 4f, false);
+            VirtualToggleButtonBound = new Rectangle(this.ModConfig.vToggle.rectangle.X, this.ModConfig.vToggle.rectangle.Y, this.ModConfig.vToggle.rectangle.Width, this.ModConfig.vToggle.rectangle.Height);
+            this.VirtualToggleButton = new ClickableTextureComponent(VirtualToggleButtonBound, texture, new Rectangle(0, 0, 16, 16), 4f, false);
 
             helper.WriteConfig<ModConfig>(this.ModConfig);
             if (this.ModConfig.AboveMenu == 0)
@@ -68,8 +69,8 @@ namespace VirtualKeyboard
             // ignore if menu open
             if (EnableMenu && this.ModConfig.AboveMenu == 0)
                 return;
-            //Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
-            Vector2 screenPixels = e.Cursor.ScreenPixels;
+
+            Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
             if (e.Button == this.ModConfig.vToggle.key || ShouldTrigger(screenPixels))
             {
                 foreach (List<KeyButton> keyButtonList in this.Buttons)
@@ -83,7 +84,7 @@ namespace VirtualKeyboard
         {
             if (this.VirtualToggleButton == null) return false;
             int ticks = Game1.ticks;
-            if (ticks - this.LastPressTick <= 6 || !((ClickableComponent)this.VirtualToggleButton).containsPoint((int)screenPixels.X, (int)screenPixels.Y))
+            if (ticks - this.LastPressTick <= 6 || !VirtualToggleButtonBound.Contains(screenPixels.X, screenPixels.Y))
                 return false;
             this.LastPressTick = ticks;
             return true;
@@ -163,14 +164,14 @@ namespace VirtualKeyboard
                 {
                     OffsetX += currentToolbarPaddingX + ToolbarItemSlotSize + 20;
                 }
-                VirtualToggleButtonPosition.X = OffsetX;
+                VirtualToggleButtonBound.X = OffsetX;
 
                 int OffsetY = this.ModConfig.vToggle.rectangle.Y;
                 if (ToolbarAlignTop && !ToolbarVertical)
                 {
                     OffsetY += ToolbarHeight + 16;
                 }
-                VirtualToggleButtonPosition.Y = OffsetY;
+                VirtualToggleButtonBound.Y = OffsetY;
                 OffsetY += this.ModConfig.vToggle.rectangle.Height + 4;
 
                 bool all_calc = true;
@@ -209,7 +210,7 @@ namespace VirtualKeyboard
 
             CalVirtualToggleButtonPosition();
 
-            Vector2 UIScalePos = Utility.ModifyCoordinatesFromUIScale(VirtualToggleButtonPosition);
+            Vector2 UIScalePos = Utility.ModifyCoordinatesFromUIScale(new Vector2(VirtualToggleButtonBound.X, VirtualToggleButtonBound.Y));
             this.VirtualToggleButton.bounds.X = (int)UIScalePos.X;
             this.VirtualToggleButton.bounds.Y = (int)UIScalePos.Y;
             this.VirtualToggleButton.bounds.Height = (int)Utility.ModifyCoordinateFromUIScale(this.ModConfig.vToggle.rectangle.Height);
@@ -232,12 +233,8 @@ namespace VirtualKeyboard
 
             CalVirtualToggleButtonPosition();
 
-            Vector2 UIScalePos = Utility.ModifyCoordinatesFromUIScale(VirtualToggleButtonPosition);
-            this.VirtualToggleButton.bounds.X = (int)UIScalePos.X;
-            this.VirtualToggleButton.bounds.Y = (int)UIScalePos.Y;
-            this.VirtualToggleButton.bounds.Height = (int)Utility.ModifyCoordinateFromUIScale(this.ModConfig.vToggle.rectangle.Height);
-            this.VirtualToggleButton.bounds.Width = (int)Utility.ModifyCoordinateFromUIScale(this.ModConfig.vToggle.rectangle.Width);
-            this.VirtualToggleButton.scale = Utility.ModifyCoordinateFromUIScale(4.0f);
+            this.VirtualToggleButton.bounds = VirtualToggleButtonBound;
+            this.VirtualToggleButton.scale = 4.0f;
             this.VirtualToggleButton.baseScale = this.VirtualToggleButton.scale;
 
             float scale = 0.5f + this.EnabledStage * 0.5f;
