@@ -1,23 +1,50 @@
-﻿using StardewModdingAPI;
-using System.Diagnostics;
+﻿using System;
+using StardewModdingAPI;
 
 namespace VirtualKeyboard
 {
+    /// <summary>
+    /// Configuration for the VirtualKeyboard mod
+    /// Note: This configuration is maintained for backwards compatibility
+    /// but the mod now uses console-based keybind simulation instead of visual buttons
+    /// </summary>
     internal class ModConfig
     {
-        public Toggle vToggle { get; set; } = new Toggle((SButton)0, new Rect(Constants.TargetPlatform == GamePlatform.Android ? 96 : 36, 12, 64, 64));
-        public int AboveMenu { get; set; } = 0;
-        public float ButtonScale { get; set; } = 1.0f;
-        public VirtualButton[][] Buttons { get; set; } = new VirtualButton[][]
-        {
-            new VirtualButton[]{
-              new VirtualButton((SButton) 80),
-              new VirtualButton((SButton) 73),
-              new VirtualButton((SButton) 79),
-              new VirtualButton((SButton) 81)
-            }
-        };
+        /// <summary>
+        /// Whether the keybind system is enabled by default
+        /// </summary>
+        public bool Enabled { get; set; } = true;
 
+        /// <summary>
+        /// Default interval between key presses in sequences (milliseconds)
+        /// </summary>
+        public int DefaultSequenceInterval { get; set; } = 100;
+
+        /// <summary>
+        /// Default duration for key holds (milliseconds)
+        /// </summary>
+        public int DefaultHoldDuration { get; set; } = 50;
+
+        /// <summary>
+        /// Whether to log keybind operations for debugging
+        /// </summary>
+        public bool LogKeybindOperations { get; set; } = true;
+
+        // Legacy configuration (kept for backwards compatibility)
+        [System.Obsolete("Visual buttons are no longer supported. Use console commands instead.")]
+        public Toggle vToggle { get; set; } = new Toggle(SButton.None, new Rect(0, 0, 0, 0));
+
+        [System.Obsolete("Visual buttons are no longer supported. Use console commands instead.")]
+        public int AboveMenu { get; set; } = 0;
+
+        [System.Obsolete("Visual buttons are no longer supported. Use console commands instead.")]
+        public float ButtonScale { get; set; } = 1.0f;
+
+        [System.Obsolete("Visual buttons are no longer supported. Use console commands instead.")]
+        public VirtualButton[][] Buttons { get; set; } = Array.Empty<VirtualButton[]>();
+
+        // Legacy classes (kept for backwards compatibility)
+        [System.Obsolete("Visual buttons are no longer supported. Use console commands instead.")]
         internal class Rect
         {
             public int X;
@@ -33,10 +60,11 @@ namespace VirtualKeyboard
                 this.Height = height;
             }
         }
+
+        [System.Obsolete("Visual buttons are no longer supported. Use console commands instead.")]
         internal class Toggle
         {
             public SButton key { get; set; }
-
             public Rect rectangle { get; set; }
 
             public Toggle(SButton key, Rect rectangle)
@@ -45,13 +73,14 @@ namespace VirtualKeyboard
                 this.rectangle = rectangle;
             }
         }
+
+        [System.Obsolete("Visual buttons are no longer supported. Use console commands instead.")]
         internal class VirtualButton
         {
             public SButton key { get; set; }
             public string alias { get; set; }
-            public VirtualButton(
-              SButton key,
-              string alias = "")
+
+            public VirtualButton(SButton key, string alias = "")
             {
                 this.key = key;
                 this.alias = alias;

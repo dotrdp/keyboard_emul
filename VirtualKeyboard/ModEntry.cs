@@ -1,30 +1,25 @@
 ﻿using System;
 using System.Reflection;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
+using HarmonyLib;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
-using StardewModdingAPI.Utilities;
-using StardewValley;
-using StardewValley.Menus;
+using VirtualKeyboard.Console;
+using VirtualKeyboard.Patches;
 
 namespace VirtualKeyboard
 {
     /// <summary>The mod entry point.</summary>
     internal sealed class ModEntry : Mod
     {
-        private ModConfig ModConfig = new ModConfig();
-        private List<List<KeyButton>> Buttons = new List<List<KeyButton>>();
-        private ClickableTextureComponent? VirtualToggleButton;
-        private int EnabledStage = 0;
-        private int LastPressTick = 0;
-        private bool FirstRender = true;
-        private bool ToolbarAlignTop = false;
-        private bool ToolbarVertical = false;
-        private int ToolbarItemSlotSize = 0;
-        private int ToolbarHeight = 0;
-        private Rectangle VirtualToggleButtonBound;
-        private bool EnableMenu = false;
+        /// <summary>
+        /// Static reference to the monitor for logging
+        /// </summary>
+        public new static IMonitor Monitor { get; private set; } = null!;
+
+        /// <summary>
+        /// The Harmony instance for applying patches
+        /// </summary>
+        private Harmony? harmony;
 
         /*********
         ** Public methods
@@ -33,212 +28,169 @@ namespace VirtualKeyboard
         /// <param name="helper">Provides simplified APIs for writing mods.</param>
         public override void Entry(IModHelper helper)
         {
-            this.ModConfig = Helper.ReadConfig<ModConfig>();
-            int buttonsLineNumber = this.ModConfig.Buttons.Length;
-            for (int line = 0; line < buttonsLineNumber; line++)
+            // Initialize static references
+            Monitor = base.Monitor;
+            IPatch.Monitor = Monitor;
+
+            try
             {
-                this.Buttons.Add(new List<KeyButton>());
-                for (int index = 0; index < this.ModConfig.Buttons[line].Length; ++index)
+                // Initialize core systems
+                InitializeSystems();
+
+                // Apply Harmony patches
+                ApplyPatches();
+
+                // Register console commands
+                RegisterConsoleCommands(helper);
+
+                // Hook game events
+                RegisterEventHandlers(helper);
+
+                Monitor.Log("VirtualKeyboard mod initialized successfully with console-based keybind simulation", LogLevel.Info);
+            }
+            catch (Exception ex)
+            {
+                Monitor.Log($"Failed to initialize VirtualKeyboard mod: {ex.Message}", LogLevel.Error);
+                Monitor.Log(ex.StackTrace ?? "No stack trace available", LogLevel.Trace);
+            }
+        }
+
+        /// <summary>
+        /// Initialize core systems
+        /// </summary>
+        private void InitializeSystems()
+        {
+            // Initialize keybind manager
+            KeybindManager.Initialize();
+
+            // Initialize console command system
+            ConsoleCommandHandler.Initialize();
+
+            Monitor.Log("Core systems initialized", LogLevel.Trace);
+        }
+
+        /// <summary>
+        /// Apply Harmony patches
+        /// </summary>
+        private void ApplyPatches()
+        {
+            harmony = new Harmony(this.ModManifest.UniqueID);
+
+            // Apply all patches in the Patches namespace
+            PatchAll(harmony);
+
+            Monitor.Log("Harmony patches applied", LogLevel.Info);
+        }
+
+        /// <summary>
+        /// Apply all patches found in the Patches namespace
+        /// </summary>
+        /// <param name="harmony">The Harmony instance</param>
+        private void PatchAll(Harmony harmony)
+        {
+            var patchTypes = new[]
+            {
+                typeof(KeyboardDispatcher_ShouldSuppress),
+                typeof(KeyboardDispatcher_Event_TextInput),
+                typeof(KeyboardDispatcher_EventInput_CharEntered),
+                typeof(KeyboardDispatcher_EventInput_KeyDown),
+                typeof(KeyboardDispatcher_Event_KeyDown),
+                typeof(SInputState_GetKeyboardState),
+                typeof(SInputState_IsDown)
+            };
+
+            foreach (var patchType in patchTypes)
+            {
+                try
                 {
-                    this.Buttons[line].Add(new KeyButton(helper, this.ModConfig.Buttons[line][index], this.ModConfig.AboveMenu));
-                }
-            }
-
-            Texture2D texture = helper.ModContent.Load<Texture2D>("assets/togglebutton.png");
-            VirtualToggleButtonBound = new Rectangle(this.ModConfig.vToggle.rectangle.X, this.ModConfig.vToggle.rectangle.Y, this.ModConfig.vToggle.rectangle.Width, this.ModConfig.vToggle.rectangle.Height);
-            this.VirtualToggleButton = new ClickableTextureComponent(VirtualToggleButtonBound, texture, new Rectangle(0, 0, 16, 16), 4f, false);
-
-            helper.WriteConfig<ModConfig>(this.ModConfig);
-            if (this.ModConfig.AboveMenu == 0)
-            {
-                helper.Events.Display.Rendered += this.Rendered;
-            }
-            else
-            {
-                helper.Events.Display.RenderedActiveMenu += this.OnRenderedActiveMenu;
-            }
-            helper.Events.Display.MenuChanged += this.OnMenuChanged;
-            helper.Events.Input.ButtonPressed += this.VirtualToggleButtonPressed;
-        }
-
-        private void VirtualToggleButtonPressed(object? sender, ButtonPressedEventArgs e)
-        {
-            // ignore if player hasn't loaded a save yet
-            if (!Context.IsWorldReady)
-                return;
-            // ignore if menu open
-            if (EnableMenu && this.ModConfig.AboveMenu == 0)
-                return;
-
-            Vector2 screenPixels = Utility.ModifyCoordinatesForUIScale(e.Cursor.ScreenPixels);
-            if (e.Button == this.ModConfig.vToggle.key || ShouldTrigger(screenPixels))
-            {
-                foreach (List<KeyButton> keyButtonList in this.Buttons)
-                    foreach (KeyButton keyButton in keyButtonList)
-                        keyButton.Hidden = Convert.ToBoolean(this.EnabledStage);
-                this.EnabledStage = 1 - this.EnabledStage;
-                this.Helper.Input.Suppress(SButton.MouseLeft);
-            }
-        }
-        private bool ShouldTrigger(Vector2 screenPixels)
-        {
-            if (this.VirtualToggleButton == null) return false;
-            int ticks = Game1.ticks;
-            if (ticks - this.LastPressTick <= 6 || !VirtualToggleButtonBound.Contains(screenPixels.X, screenPixels.Y))
-                return false;
-            this.LastPressTick = ticks;
-            return true;
-        }
-        private void OnMenuChanged(object? sender, MenuChangedEventArgs e)
-        {
-            foreach (List<KeyButton> keyButtonList in this.Buttons)
-                foreach (KeyButton keyButton in keyButtonList)
-                    keyButton.Hidden = true;
-            this.EnabledStage = 0;
-            EnableMenu = e.NewMenu != null;
-        }
-
-        private void CalVirtualToggleButtonPosition()
-        {
-            bool RecalButtonPosition = FirstRender;
-            if (Constants.TargetPlatform == GamePlatform.Android)
-            {
-                Type Game1OptionType = Game1.options.GetType();
-                FieldInfo? verticalToolbarField = Game1OptionType.GetField("verticalToolbar");
-
-                if (verticalToolbarField != null)
-                {
-                    bool currentToolbarVertical = Convert.ToBoolean(verticalToolbarField.GetValue(Game1.options));
-                    RecalButtonPosition |= (ToolbarVertical != currentToolbarVertical);
-                    ToolbarVertical = currentToolbarVertical;
-                }
-
-                foreach (IClickableMenu onScreenMenu in Game1.onScreenMenus)
-                {
-                    if (onScreenMenu is Toolbar)
+                    if (Activator.CreateInstance(patchType) is IPatch patch)
                     {
-                        Toolbar toolbar = (Toolbar)onScreenMenu;
-                        Type ToolbarType = toolbar.GetType();
-                        FieldInfo? alignTopField = ToolbarType.GetField("alignTop");
-                        if (alignTopField != null)
-                        {
-                            bool currentAlignTop = Convert.ToBoolean(alignTopField.GetValue(toolbar));
-                            RecalButtonPosition |= (ToolbarAlignTop != currentAlignTop);
-                            ToolbarAlignTop = currentAlignTop;
-                        }
-
-                        PropertyInfo? itemSlotSizeProperty = ToolbarType.GetProperty("itemSlotSize");
-                        if (itemSlotSizeProperty != null)
-                        {
-                            int currentItemSlotSize = Convert.ToInt32(itemSlotSizeProperty.GetValue(toolbar));
-                            RecalButtonPosition |= (ToolbarItemSlotSize != currentItemSlotSize);
-                            ToolbarItemSlotSize = currentItemSlotSize;
-                        }
-
-                        //FieldInfo? toolbarHeightField = ToolbarType.GetField("toolbarHeight");
-                        //if (toolbarHeightField != null)
-                        //{
-                        //    int currentToolbarHeight = Convert.ToInt32(toolbarHeightField.GetValue(toolbar));
-                        //    RecalButtonPosition |= (ToolbarHeight != currentToolbarHeight);
-                        //    ToolbarHeight = currentToolbarHeight;
-                        //}
-                        ToolbarHeight = this.Helper.Reflection.GetField<int>(toolbar, "toolbarHeight").GetValue();
-
-                        break;
+                        patch.Patch(harmony);
+                        Monitor.Log($"Applied patch: {patch.Name}", LogLevel.Trace);
                     }
                 }
+                catch (Exception ex)
+                {
+                    Monitor.Log($"Failed to apply patch {patchType.Name}: {ex.Message}", LogLevel.Error);
+                }
             }
+        }
 
-            if (RecalButtonPosition)
+        /// <summary>
+        /// Register console commands with SMAPI
+        /// </summary>
+        /// <param name="helper">Mod helper</param>
+        private void RegisterConsoleCommands(IModHelper helper)
+        {
+            // Register each keybind command with SMAPI console
+            var commands = ConsoleCommandHandler.GetCommands();
+            
+            foreach (var command in commands.Values)
             {
-                int currentToolbarPaddingX = 0;
-                Type Game1Type = typeof(Game1);
-                FieldInfo? toolbarPaddingXField = Game1Type.GetField("toolbarPaddingX", BindingFlags.Public | BindingFlags.Static);
-                if (toolbarPaddingXField != null)
+                helper.ConsoleCommands.Add(command.Name, command.Description, (name, args) =>
                 {
-                    currentToolbarPaddingX = Convert.ToInt32(toolbarPaddingXField.GetValue(null));
-                }
-
-                int OffsetX = this.ModConfig.vToggle.rectangle.X;
-                if (ToolbarVertical)
-                {
-                    OffsetX += currentToolbarPaddingX + ToolbarItemSlotSize + 20;
-                }
-                VirtualToggleButtonBound.X = OffsetX;
-
-                int OffsetY = this.ModConfig.vToggle.rectangle.Y;
-                if (ToolbarAlignTop && !ToolbarVertical)
-                {
-                    OffsetY += ToolbarHeight + 16;
-                }
-                VirtualToggleButtonBound.Y = OffsetY;
-                OffsetY += this.ModConfig.vToggle.rectangle.Height + 4;
-
-                bool all_calc = true;
-                for (int line = 0; line < this.Buttons.Count; ++line)
-                {
-                    int LineOffsetX = OffsetX;
-                    for (int index = 0; index < this.Buttons[line].Count; ++index)
-                    {
-                        if (!Buttons[line][index].CalcBounds(LineOffsetX, OffsetY))
-                        {
-                            all_calc = false;
-                            break;
-                        }
-                        LineOffsetX = Buttons[line][index].OutterBounds.X + Buttons[line][index].OutterBounds.Width + 10;
-                    }
-                    OffsetY = Buttons[line][0].OutterBounds.Y + Buttons[line][0].OutterBounds.Height + 10;
-                }
-                FirstRender = !all_calc;
+                    var result = ConsoleCommandHandler.ExecuteCommand($"{name} {string.Join(" ", args)}");
+                    Monitor.Log(result, LogLevel.Info);
+                });
             }
+
+            Monitor.Log($"Registered {commands.Count} console commands", LogLevel.Info);
         }
 
-        /*********
-        ** Private methods
-        *********/
-        /// <summary>Raised after the game draws to the sprite batch in a draw tick, just before the final sprite batch is rendered to the screen.</summary>
-        /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event data.</param>
-        private void Rendered(object? sender, RenderedEventArgs e)
+        /// <summary>
+        /// Register event handlers
+        /// </summary>
+        /// <param name="helper">Mod helper</param>
+        private void RegisterEventHandlers(IModHelper helper)
         {
-            // ignore if player hasn't loaded a save yet
-            if (!Context.IsWorldReady)
-                return;
+            // Update keybind manager each game tick
+            helper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
 
-            if (this.VirtualToggleButton == null)
-                return;
+            // Log when save is loaded
+            helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
 
-            CalVirtualToggleButtonPosition();
-
-            Vector2 UIScalePos = Utility.ModifyCoordinatesFromUIScale(new Vector2(VirtualToggleButtonBound.X, VirtualToggleButtonBound.Y));
-            this.VirtualToggleButton.bounds.X = (int)UIScalePos.X;
-            this.VirtualToggleButton.bounds.Y = (int)UIScalePos.Y;
-            this.VirtualToggleButton.bounds.Height = (int)Utility.ModifyCoordinateFromUIScale(this.ModConfig.vToggle.rectangle.Height);
-            this.VirtualToggleButton.bounds.Width = (int)Utility.ModifyCoordinateFromUIScale(this.ModConfig.vToggle.rectangle.Width);
-            this.VirtualToggleButton.scale = Utility.ModifyCoordinateFromUIScale(4.0f);
-            this.VirtualToggleButton.baseScale = this.VirtualToggleButton.scale;
-
-            float scale = 0.5f + this.EnabledStage * 0.5f;
-            this.VirtualToggleButton.draw(e.SpriteBatch, Color.Multiply(Color.White, scale), 1E-06f, 0);
+            Monitor.Log("Event handlers registered", LogLevel.Trace);
         }
 
-        private void OnRenderedActiveMenu(object? sender, RenderedActiveMenuEventArgs e)
+        /// <summary>
+        /// Handle game update ticks
+        /// </summary>
+        /// <param name="sender">Event sender</param>
+        /// <param name="e">Event arguments</param>
+        private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
         {
-            // ignore if player hasn't loaded a save yet
-            if (!Context.IsWorldReady)
-                return;
+            // Update keybind manager every tick
+            KeybindManager.Update();
+        }
 
-            if (this.VirtualToggleButton == null)
-                return;
+        /// <summary>
+        /// Handle save loaded
+        /// </summary>
+        /// <param name="sender">Event sender</param>
+        /// <param name="e">Event arguments</param>
+        private void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
+        {
+            Monitor.Log("Save loaded - keybind system ready", LogLevel.Info);
+        }
 
-            CalVirtualToggleButtonPosition();
+        /// <summary>
+        /// Cleanup when mod is disposed
+        /// </summary>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                // Clear all virtual keys
+                KeybindManager.ClearAllKeys();
 
-            this.VirtualToggleButton.bounds = VirtualToggleButtonBound;
-            this.VirtualToggleButton.scale = 4.0f;
-            this.VirtualToggleButton.baseScale = this.VirtualToggleButton.scale;
+                // Unpatch Harmony
+                harmony?.UnpatchAll(this.ModManifest.UniqueID);
+                harmony = null;
 
-            float scale = 0.5f + this.EnabledStage * 0.5f;
-            this.VirtualToggleButton.draw(e.SpriteBatch, Color.Multiply(Color.White, scale), 1E-06f, 0);
+                Monitor.Log("VirtualKeyboard mod disposed", LogLevel.Trace);
+            }
+
+            base.Dispose(disposing);
         }
     }
 }
