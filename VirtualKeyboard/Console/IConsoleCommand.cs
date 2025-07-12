@@ -55,6 +55,8 @@ namespace VirtualKeyboard.Console
             RegisterCommand(new KeybindClearCommand());
             RegisterCommand(new KeybindEnableCommand());
             RegisterCommand(new KeybindHelpCommand());
+            RegisterCommand(new KeybindTestCommand());
+            RegisterCommand(new KeybindDirectTestCommand());
 
             Patches.IPatch.Info("Console command system initialized");
         }

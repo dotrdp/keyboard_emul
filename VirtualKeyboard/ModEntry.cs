@@ -17,6 +17,11 @@ namespace VirtualKeyboard
         public new static IMonitor Monitor { get; private set; } = null!;
 
         /// <summary>
+        /// Static reference to the helper for accessing SMAPI APIs
+        /// </summary>
+        public new static IModHelper Helper { get; private set; } = null!;
+
+        /// <summary>
         /// The Harmony instance for applying patches
         /// </summary>
         private Harmony? harmony;
@@ -30,6 +35,7 @@ namespace VirtualKeyboard
         {
             // Initialize static references
             Monitor = base.Monitor;
+            Helper = helper;
             IPatch.Monitor = Monitor;
 
             try
@@ -95,8 +101,14 @@ namespace VirtualKeyboard
                 typeof(KeyboardDispatcher_EventInput_CharEntered),
                 typeof(KeyboardDispatcher_EventInput_KeyDown),
                 typeof(KeyboardDispatcher_Event_KeyDown),
-                typeof(SInputState_GetKeyboardState),
-                typeof(SInputState_IsDown)
+                typeof(CriticalInputPatch),
+                typeof(PlayerMovementPatch),
+                typeof(InputHelper_IsDown),
+                typeof(SInputState_IsDown),
+                typeof(KeyboardState_IsKeyDown),
+                typeof(Game1_Input),
+                typeof(SMAPI_InputHelper),
+                typeof(Game1_InputIsDown)
             };
 
             foreach (var patchType in patchTypes)

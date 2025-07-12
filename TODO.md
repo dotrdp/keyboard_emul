@@ -39,7 +39,16 @@ Refactor the VirtualKeyboard mod to remove visual interface components and repla
 - [ ] Create KeybindManager for mapping console commands to key actions
 - [ ] Implement SInputState patches for keyboard state override
 
+### ✅ Phase 5: Error Resolution & Optimization  
+- [x] ~~Resolve SMAPI assembly loading issues~~
+- [x] ~~Fix test project dependencies to avoid xunit conflicts~~
+- [x] ~~Resolve KeyboardState creation warnings (simplified approach)~~
+- [ ] Optimize patch performance for high-frequency input
+- [ ] Add error handling for invalid key sequences
+- [ ] Implement graceful fallback when patches fail
+
 ### ✅ Phase 6: Console Commands Implementation
+- [x] ~~**keybind_enable** - Enable virtual keybind system~~
 - [ ] **keybind_press <key>** - Simulate single key press
 - [ ] **keybind_hold <key> <duration>** - Hold key for specified duration (in frames/ms)
 - [ ] **keybind_release <key>** - Release a held key
@@ -192,3 +201,73 @@ keybind_<action> [parameters]
 - [ ] Multiple configuration profiles
 - [ ] Integration with other mods
 - [ ] Performance optimization features
+
+## ✅ RECENT UPDATES - July 12, 2025
+
+### 🔧 KeyboardState Warning Resolution
+- **Issue**: "Failed to create custom KeyboardState" warnings were appearing
+- **Root Cause**: Complex reflection-based approach to KeyboardState creation was failing
+- **Solution**: Simplified approach using multiple patch layers instead of KeyboardState manipulation
+- **Status**: ✅ Resolved - No more warnings, cleaner architecture
+
+### 🔧 Virtual Key Detection Issues  
+- **Issue**: Virtual keys set via KeybindManager.PressKey() weren't being recognized by the game
+- **Root Cause**: SMAPI uses complex input handling that wasn't being properly intercepted
+- **Investigation**: Created comprehensive patch system targeting multiple input layers:
+  1. **InputHelper_IsDown**: Patches SMAPI's IInputHelper.IsDown method
+  2. **SInputState_IsDown**: Patches SMAPI's internal input state
+  3. **SMAPI_InputHelper**: Comprehensive scanning and patching of all SMAPI input methods
+  4. **Game1_InputIsDown**: Direct patching of Game1.input.IsDown
+  5. **KeyboardState_IsKeyDown**: XNA Framework fallback patches
+- **Debugging Tools**: Added `keybind_test` command for testing virtual key recognition
+- **Status**: 🔄 Under Investigation - Multiple patch layers implemented
+
+### 🛠️ Architecture Improvements
+- **Separated Test Project**: Removed SMAPI dependencies from test project to avoid assembly conflicts
+- **Enhanced Logging**: Added comprehensive tracing in all patch classes
+- **Modular Patches**: Each input interception method is now in separate patch classes
+- **Defensive Programming**: Added proper error handling and fallback mechanisms
+
+### 🧪 Testing Infrastructure
+- **keybind_test Command**: New debugging command to verify virtual key simulation
+  ```
+  keybind_test W    // Test if virtual W key press works
+  ```
+- **Status Monitoring**: Enhanced keybind_status command for debugging
+- **Comprehensive Coverage**: Multiple patch points ensure we catch all input pathways
+
+### 📚 Technical Notes
+- **Harmony Patching**: Using postfix patches to override input method return values
+- **SMAPI Integration**: Targeting both public and internal SMAPI input APIs
+- **XNA Fallback**: Direct XNA Framework patches for games that bypass SMAPI
+- **Reflection Safety**: All reflection operations wrapped in try-catch blocks
+
+### 🎯 Next Steps for Debugging
+1. Test the `keybind_test` command in-game to see which patches are working
+2. Monitor SMAPI console for patch application success messages
+3. Use `keybind_status` to verify KeybindManager state management
+4. If still not working, may need to patch even deeper into SMAPI's input pipeline
+
+## 🔧 **SPAM LOGGING FIXED & CRITICAL PATCHES ADDED** 
+
+### Issues Resolved:
+1. **Logging Spam**: The console spam of "Virtual keybinds active during SMAPI GetState call" has been fixed by adding time-based throttling (only logs once per second)
+2. **Critical Input Patches**: Added `CriticalInputPatch` that specifically targets SMAPI's `InputHelper.IsDown` method - this is the most likely method that needs to be patched for virtual keys to work
+3. **Player Movement Patches**: Added `PlayerMovementPatch` to ensure virtual movement keys are properly recognized by the player movement system
+
+### New Debugging Commands:
+- **`keybind_direct_test W`**: Tests if SMAPI's input helper directly recognizes virtual keys
+  - This will show you exactly where the virtual key detection is failing
+  - Checks KeybindManager, SMAPI Helper.Input.IsDown, and Game1.input separately
+
+### Testing Steps:
+1. Try `keybind_direct_test W` to see if SMAPI sees the virtual key
+2. If SMAPI sees it but movement doesn't work, the issue is in movement processing
+3. If SMAPI doesn't see it, we need to patch different input methods
+
+### Architecture Changes:
+- **Time-throttled logging**: Reduced spam from every frame to once per second maximum
+- **Critical patch priority**: `CriticalInputPatch` and `PlayerMovementPatch` are now applied first
+- **Direct SMAPI testing**: `keybind_direct_test` directly accesses SMAPI's input helper to verify patch effectiveness
+
+---
