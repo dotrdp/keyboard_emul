@@ -1,285 +1,235 @@
+using Microsoft.Xna.Framework.Input;
+using StardewModdingAPI;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Xna.Framework.Input;
-using StardewModdingAPI;
-using StardewModdingAPI.Events;
+using VirtualKeyboard.Inputs;
 
 namespace VirtualKeyboard
 {
     /// <summary>
-    /// Manages virtual keyboard input state and keybind simulation
+    /// Manages virtual keybind states and timing - TASMod approach
     /// </summary>
     public static class KeybindManager
     {
-        /// <summary>
-        /// Currently held virtual keys
-        /// </summary>
-        private static readonly Dictionary<SButton, DateTime> HeldKeys = new();
+        private static readonly Dictionary<SButton, DateTime> _heldKeys = new();
+        private static readonly Dictionary<SButton, DateTime> _pressedKeys = new();
 
         /// <summary>
-        /// Keys pressed this frame
+        /// Whether any virtual keybinds are currently active
         /// </summary>
-        private static readonly HashSet<SButton> PressedKeys = new();
+        public static bool HasActiveKeybinds => _heldKeys.Any() || _pressedKeys.Any();
 
         /// <summary>
-        /// Keys released this frame
+        /// Press a key for one frame
         /// </summary>
-        private static readonly HashSet<SButton> ReleasedKeys = new();
-
-        /// <summary>
-        /// Active key sequences being executed
-        /// </summary>
-        private static readonly List<KeySequence> ActiveSequences = new();
-
-        /// <summary>
-        /// Whether virtual keybinds are currently active
-        /// </summary>
-        public static bool HasActiveKeybinds => HeldKeys.Count > 0 || PressedKeys.Count > 0 || ActiveSequences.Count > 0;
-
-        /// <summary>
-        /// Whether virtual input is enabled
-        /// </summary>
-        public static bool IsEnabled { get; set; } = true;
-
-        /// <summary>
-        /// Event fired when virtual key state changes
-        /// </summary>
-        public static event Action<SButton, bool>? KeyStateChanged;
-
-        /// <summary>
-        /// Initialize the keybind manager
-        /// </summary>
-        public static void Initialize()
+        public static void PressKey(SButton key)
         {
-            // Clear any existing state
-            HeldKeys.Clear();
-            PressedKeys.Clear();
-            ReleasedKeys.Clear();
-            ActiveSequences.Clear();
+            _pressedKeys[key] = DateTime.Now.AddMilliseconds(50); // Brief press
+            UpdateVirtualInput();
+            ModEntry.Logger?.Log($"KeybindManager: Pressing key {key} for 50ms", LogLevel.Debug);
         }
 
         /// <summary>
-        /// Update the keybind manager each frame
+        /// Hold a key for a duration
+        /// </summary>
+        public static void HoldKey(SButton key, int durationMs = 1000)
+        {
+            _heldKeys[key] = DateTime.Now.AddMilliseconds(durationMs);
+            UpdateVirtualInput();
+            ModEntry.Logger?.Log($"KeybindManager: Holding key {key} for {durationMs}ms", LogLevel.Debug);
+        }
+
+        /// <summary>
+        /// Release a specific key
+        /// </summary>
+        public static void ReleaseKey(SButton key)
+        {
+            _heldKeys.Remove(key);
+            _pressedKeys.Remove(key);
+            UpdateVirtualInput();
+            ModEntry.Logger?.Log($"KeybindManager: Released key {key}", LogLevel.Debug);
+        }
+
+        /// <summary>
+        /// Check if a key is currently held virtually
+        /// </summary>
+        public static bool IsKeyHeld(SButton key)
+        {
+            var now = DateTime.Now;
+            
+            // Check if key is in pressed state and still active
+            if (_pressedKeys.TryGetValue(key, out DateTime pressedEnd) && now <= pressedEnd)
+            {
+                return true;
+            }
+            
+            // Check if key is in held state and still active
+            if (_heldKeys.TryGetValue(key, out DateTime heldEnd) && now <= heldEnd)
+            {
+                return true;
+            }
+            
+            return false;
+        }
+
+        /// <summary>
+        /// Clear all virtual keybinds
+        /// </summary>
+        public static void ClearAll()
+        {
+            _heldKeys.Clear();
+            _pressedKeys.Clear();
+            VirtualInputState.Reset();
+            ModEntry.Logger?.Log("KeybindManager: Cleared all virtual keybinds", LogLevel.Debug);
+        }
+
+        /// <summary>
+        /// Update and cleanup expired keybinds
         /// </summary>
         public static void Update()
         {
-            if (!IsEnabled) return;
+            var now = DateTime.Now;
+            var expiredPressed = _pressedKeys.Where(kvp => now > kvp.Value).Select(kvp => kvp.Key).ToList();
+            var expiredHeld = _heldKeys.Where(kvp => now > kvp.Value).Select(kvp => kvp.Key).ToList();
 
-            // Clear frame-specific collections
-            PressedKeys.Clear();
-            ReleasedKeys.Clear();
+            bool hasChanges = false;
 
-            // Update active sequences
-            for (int i = ActiveSequences.Count - 1; i >= 0; i--)
+            foreach (var key in expiredPressed)
             {
-                var sequence = ActiveSequences[i];
-                sequence.Update();
-                
-                if (sequence.IsComplete)
+                _pressedKeys.Remove(key);
+                hasChanges = true;
+                ModEntry.Logger?.Log($"KeybindManager: Expired pressed key {key}", LogLevel.Trace);
+            }
+
+            foreach (var key in expiredHeld)
+            {
+                _heldKeys.Remove(key);
+                hasChanges = true;
+                ModEntry.Logger?.Log($"KeybindManager: Expired held key {key}", LogLevel.Trace);
+            }
+
+            if (hasChanges)
+            {
+                UpdateVirtualInput();
+            }
+        }
+
+        /// <summary>
+        /// Get all currently active virtual keys
+        /// </summary>
+        public static List<SButton> GetActiveKeys()
+        {
+            var now = DateTime.Now;
+            var activeKeys = new List<SButton>();
+
+            // Add all pressed keys that are still active
+            activeKeys.AddRange(_pressedKeys.Where(kvp => now <= kvp.Value).Select(kvp => kvp.Key));
+            
+            // Add all held keys that are still active
+            activeKeys.AddRange(_heldKeys.Where(kvp => now <= kvp.Value).Select(kvp => kvp.Key));
+
+            return activeKeys.Distinct().ToList();
+        }
+
+        /// <summary>
+        /// Update the VirtualInputState with current active keys
+        /// </summary>
+        private static void UpdateVirtualInput()
+        {
+            var activeKeys = GetActiveKeys();
+            
+            // Convert SButton to Keys where possible
+            var keys = new List<Keys>();
+            foreach (var sButton in activeKeys)
+            {
+                if (TryConvertSButtonToKeys(sButton, out Keys key))
                 {
-                    ActiveSequences.RemoveAt(i);
+                    keys.Add(key);
                 }
             }
 
-            // Check for expired held keys
-            var expiredKeys = HeldKeys.Where(kvp => 
-                kvp.Value != DateTime.MaxValue && 
-                DateTime.Now > kvp.Value).ToList();
-
-            foreach (var kvp in expiredKeys)
+            // Update virtual input state
+            VirtualInputState.ClearKeys();
+            if (keys.Any())
             {
-                ReleaseKey(kvp.Key);
+                VirtualInputState.AddKeys(keys);
+                ModEntry.Logger?.Log($"VirtualInputState: Updated with keys [{string.Join(", ", keys)}]", LogLevel.Trace);
             }
         }
 
         /// <summary>
-        /// Simulate a key press
+        /// Convert SButton to Keys enum
         /// </summary>
-        /// <param name="key">The key to press</param>
-        public static void PressKey(SButton key)
+        public static bool TryConvertSButtonToKeys(SButton sButton, out Keys keys)
         {
-            if (!IsEnabled) return;
+            keys = default;
 
-            PressedKeys.Add(key);
-            HeldKeys[key] = DateTime.MaxValue; // Hold indefinitely until released
-            KeyStateChanged?.Invoke(key, true);
-            
-            Patches.IPatch.Info($"Virtual key pressed: {key}");
-        }
-
-        /// <summary>
-        /// Simulate a key release
-        /// </summary>
-        /// <param name="key">The key to release</param>
-        public static void ReleaseKey(SButton key)
-        {
-            if (!IsEnabled) return;
-
-            if (HeldKeys.ContainsKey(key))
+            // Handle keyboard keys (most common case)
+            if (sButton.ToString().StartsWith("Keys."))
             {
-                HeldKeys.Remove(key);
-                ReleasedKeys.Add(key);
-                KeyStateChanged?.Invoke(key, false);
-                
-                Patches.IPatch.Info($"Virtual key released: {key}");
+                var keyName = sButton.ToString().Substring(5); // Remove "Keys." prefix
+                if (Enum.TryParse<Keys>(keyName, out keys))
+                {
+                    return true;
+                }
+            }
+
+            // Direct conversion for common keys
+            switch (sButton)
+            {
+                case SButton.W:
+                    keys = Keys.W;
+                    return true;
+                case SButton.A:
+                    keys = Keys.A;
+                    return true;
+                case SButton.S:
+                    keys = Keys.S;
+                    return true;
+                case SButton.D:
+                    keys = Keys.D;
+                    return true;
+                case SButton.Space:
+                    keys = Keys.Space;
+                    return true;
+                case SButton.Enter:
+                    keys = Keys.Enter;
+                    return true;
+                case SButton.Escape:
+                    keys = Keys.Escape;
+                    return true;
+                case SButton.LeftShift:
+                    keys = Keys.LeftShift;
+                    return true;
+                case SButton.RightShift:
+                    keys = Keys.RightShift;
+                    return true;
+                case SButton.LeftControl:
+                    keys = Keys.LeftControl;
+                    return true;
+                case SButton.RightControl:
+                    keys = Keys.RightControl;
+                    return true;
+                // Add more mappings as needed
+                default:
+                    // Try parsing the SButton name directly as Keys enum
+                    return Enum.TryParse<Keys>(sButton.ToString(), out keys);
             }
         }
 
         /// <summary>
-        /// Hold a key for a specific duration
+        /// Get debug information about current state
         /// </summary>
-        /// <param name="key">The key to hold</param>
-        /// <param name="durationMs">Duration in milliseconds</param>
-        public static void HoldKey(SButton key, int durationMs)
+        public static string GetDebugInfo()
         {
-            if (!IsEnabled) return;
+            var now = DateTime.Now;
+            var activePressed = _pressedKeys.Where(kvp => now <= kvp.Value).ToList();
+            var activeHeld = _heldKeys.Where(kvp => now <= kvp.Value).ToList();
 
-            PressedKeys.Add(key);
-            HeldKeys[key] = DateTime.Now.AddMilliseconds(durationMs);
-            KeyStateChanged?.Invoke(key, true);
-            
-            Patches.IPatch.Info($"Virtual key held: {key} for {durationMs}ms");
-        }
-
-        /// <summary>
-        /// Execute a sequence of key presses
-        /// </summary>
-        /// <param name="keys">The keys to press in sequence</param>
-        /// <param name="intervalMs">Interval between presses in milliseconds</param>
-        public static void ExecuteSequence(IEnumerable<SButton> keys, int intervalMs = 100)
-        {
-            if (!IsEnabled) return;
-
-            var sequence = new KeySequence(keys, intervalMs);
-            ActiveSequences.Add(sequence);
-            
-            Patches.IPatch.Info($"Started key sequence: {string.Join(", ", keys)} with {intervalMs}ms intervals");
-        }
-
-        /// <summary>
-        /// Execute a key combination (simultaneous press)
-        /// </summary>
-        /// <param name="keys">The keys to press simultaneously</param>
-        /// <param name="holdDurationMs">How long to hold the combination</param>
-        public static void ExecuteCombo(IEnumerable<SButton> keys, int holdDurationMs = 50)
-        {
-            if (!IsEnabled) return;
-
-            var keyList = keys.ToList();
-            
-            // Press all keys simultaneously
-            foreach (var key in keyList)
-            {
-                PressedKeys.Add(key);
-                HeldKeys[key] = DateTime.Now.AddMilliseconds(holdDurationMs);
-                KeyStateChanged?.Invoke(key, true);
-            }
-            
-            Patches.IPatch.Info($"Executed key combo: {string.Join("+", keyList)} for {holdDurationMs}ms");
-        }
-
-        /// <summary>
-        /// Check if a virtual key is currently held
-        /// </summary>
-        /// <param name="key">The key to check</param>
-        /// <returns>True if the key is being held virtually</returns>
-        public static bool IsKeyHeld(SButton key)
-        {
-            return HeldKeys.ContainsKey(key);
-        }
-
-        /// <summary>
-        /// Check if a virtual key was pressed this frame
-        /// </summary>
-        /// <param name="key">The key to check</param>
-        /// <returns>True if the key was pressed this frame</returns>
-        public static bool IsKeyPressed(SButton key)
-        {
-            return PressedKeys.Contains(key);
-        }
-
-        /// <summary>
-        /// Check if a virtual key was released this frame
-        /// </summary>
-        /// <param name="key">The key to check</param>
-        /// <returns>True if the key was released this frame</returns>
-        public static bool IsKeyReleased(SButton key)
-        {
-            return ReleasedKeys.Contains(key);
-        }
-
-        /// <summary>
-        /// Get all currently held keys
-        /// </summary>
-        /// <returns>Collection of held keys</returns>
-        public static IEnumerable<SButton> GetHeldKeys()
-        {
-            return HeldKeys.Keys.ToList();
-        }
-
-        /// <summary>
-        /// Clear all virtual key states
-        /// </summary>
-        public static void ClearAllKeys()
-        {
-            var heldKeys = HeldKeys.Keys.ToList();
-            foreach (var key in heldKeys)
-            {
-                ReleaseKey(key);
-            }
-            
-            PressedKeys.Clear();
-            ReleasedKeys.Clear();
-            ActiveSequences.Clear();
-            
-            Patches.IPatch.Info("Cleared all virtual key states");
-        }
-
-        /// <summary>
-        /// Get status information about current keybind state
-        /// </summary>
-        /// <returns>Status string</returns>
-        public static string GetStatus()
-        {
-            var held = HeldKeys.Keys.ToList();
-            var sequences = ActiveSequences.Count;
-            
-            return $"Held Keys: [{string.Join(", ", held)}], Active Sequences: {sequences}, Enabled: {IsEnabled}";
-        }
-    }
-
-    /// <summary>
-    /// Represents a sequence of key presses with timing
-    /// </summary>
-    public class KeySequence
-    {
-        private readonly List<SButton> keys;
-        private readonly int intervalMs;
-        private int currentIndex = 0;
-        private DateTime nextActionTime;
-
-        public bool IsComplete => currentIndex >= keys.Count;
-
-        public KeySequence(IEnumerable<SButton> keys, int intervalMs)
-        {
-            this.keys = keys.ToList();
-            this.intervalMs = intervalMs;
-            this.nextActionTime = DateTime.Now;
-        }
-
-        public void Update()
-        {
-            if (IsComplete || DateTime.Now < nextActionTime) return;
-
-            var key = keys[currentIndex];
-            
-            // Press and immediately schedule release
-            KeybindManager.PressKey(key);
-            KeybindManager.HoldKey(key, 50); // Brief hold
-            
-            currentIndex++;
-            nextActionTime = DateTime.Now.AddMilliseconds(intervalMs);
+            return $"Pressed: [{string.Join(", ", activePressed.Select(kvp => $"{kvp.Key}({(kvp.Value - now).TotalMilliseconds:F0}ms)"))}] " +
+                   $"Held: [{string.Join(", ", activeHeld.Select(kvp => $"{kvp.Key}({(kvp.Value - now).TotalMilliseconds:F0}ms)"))}] " +
+                   $"VirtualActive: {VirtualInputState.Active}";
         }
     }
 }

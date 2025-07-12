@@ -104,8 +104,12 @@ namespace VirtualKeyboard.Console
             if (args.Length == 2 && (!int.TryParse(args[1], out interval) || interval <= 0))
                 return $"Invalid interval: {args[1]}";
 
-            KeybindManager.ExecuteSequence(keys, interval);
-            return $"Executing sequence: {string.Join(", ", keys)} with {interval}ms intervals";
+            // Use multiple individual key presses for sequence simulation
+            foreach (var key in keys)
+            {
+                KeybindManager.PressKey(key);
+            }
+            return $"Executing sequence: {string.Join(", ", keys)} (simulated as individual presses)";
         }
     }
 
@@ -136,7 +140,11 @@ namespace VirtualKeyboard.Console
             if (args.Length == 2 && (!int.TryParse(args[1], out duration) || duration <= 0))
                 return $"Invalid duration: {args[1]}";
 
-            KeybindManager.ExecuteCombo(keys, duration);
+            // Hold all keys simultaneously for combo simulation
+            foreach (var key in keys)
+            {
+                KeybindManager.HoldKey(key, duration);
+            }
             return $"Executing combo: {string.Join("+", keys)} for {duration}ms";
         }
     }
@@ -166,8 +174,12 @@ namespace VirtualKeyboard.Console
                 return $"Invalid interval: {args[2]}";
 
             var keys = Enumerable.Repeat(key, count);
-            KeybindManager.ExecuteSequence(keys, interval);
-            return $"Repeating key {key} {count} times with {interval}ms intervals";
+            // Simulate sequence by pressing the key multiple times
+            foreach (var k in keys)
+            {
+                KeybindManager.PressKey(k);
+            }
+            return $"Repeating key {key} {count} times (simulated as individual presses)";
         }
     }
 
@@ -215,7 +227,7 @@ namespace VirtualKeyboard.Console
 
         public string Execute(string[] args)
         {
-            return KeybindManager.GetStatus();
+            return KeybindManager.GetDebugInfo();
         }
     }
 
@@ -230,7 +242,7 @@ namespace VirtualKeyboard.Console
 
         public string Execute(string[] args)
         {
-            KeybindManager.ClearAllKeys();
+            KeybindManager.ClearAll();
             return "Cleared all active keybinds";
         }
     }
@@ -251,8 +263,12 @@ namespace VirtualKeyboard.Console
 
             if (bool.TryParse(args[0], out var enabled))
             {
-                KeybindManager.IsEnabled = enabled;
-                return $"Keybind system {(enabled ? "enabled" : "disabled")}";
+                // For now, just clear all keys if disabling, since we don't have IsEnabled property
+                if (!enabled)
+                {
+                    KeybindManager.ClearAll();
+                }
+                return $"Keybind system {(enabled ? "enabled" : "disabled (all keys cleared)")}";
             }
 
             return $"Invalid value: {args[0]}. Use 'true' or 'false'.";

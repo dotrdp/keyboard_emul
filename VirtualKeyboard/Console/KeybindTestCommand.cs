@@ -33,7 +33,7 @@ namespace VirtualKeyboard.Console
             result += $"KeybindManager.IsKeyHeld({key}): {isHeld}\n";
             
             // Test 2: Check current state
-            var status = KeybindManager.GetStatus();
+            var status = KeybindManager.GetDebugInfo();
             result += $"KeybindManager status: {status}\n";
             
             // Test 3: Check Game1 input state

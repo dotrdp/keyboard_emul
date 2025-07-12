@@ -1,10 +1,9 @@
-﻿using System;
+using System;
 using System.Reflection;
 using HarmonyLib;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using VirtualKeyboard.Console;
-using VirtualKeyboard.Patches;
 
 namespace VirtualKeyboard
 {
@@ -14,7 +13,7 @@ namespace VirtualKeyboard
         /// <summary>
         /// Static reference to the monitor for logging
         /// </summary>
-        public new static IMonitor Monitor { get; private set; } = null!;
+        public static IMonitor? Logger { get; private set; }
 
         /// <summary>
         /// Static reference to the helper for accessing SMAPI APIs
@@ -34,9 +33,8 @@ namespace VirtualKeyboard
         public override void Entry(IModHelper helper)
         {
             // Initialize static references
-            Monitor = base.Monitor;
+            Logger = Monitor;
             Helper = helper;
-            IPatch.Monitor = Monitor;
 
             try
             {
@@ -49,159 +47,203 @@ namespace VirtualKeyboard
                 // Register console commands
                 RegisterConsoleCommands(helper);
 
-                // Hook game events
-                RegisterEventHandlers(helper);
-
-                Monitor.Log("VirtualKeyboard mod initialized successfully with console-based keybind simulation", LogLevel.Info);
+                Logger?.Log("Virtual Keyboard mod loaded successfully", LogLevel.Info);
             }
             catch (Exception ex)
             {
-                Monitor.Log($"Failed to initialize VirtualKeyboard mod: {ex.Message}", LogLevel.Error);
-                Monitor.Log(ex.StackTrace ?? "No stack trace available", LogLevel.Trace);
+                Logger?.Log($"Failed to initialize mod: {ex}", LogLevel.Error);
+                throw;
             }
         }
 
+        /*********
+        ** Private methods
+        *********/
         /// <summary>
         /// Initialize core systems
         /// </summary>
         private void InitializeSystems()
         {
-            // Initialize keybind manager
-            KeybindManager.Initialize();
+            // Setup update loop for keybind management
+            Helper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
 
-            // Initialize console command system
-            ConsoleCommandHandler.Initialize();
-
-            Monitor.Log("Core systems initialized", LogLevel.Trace);
+            Logger?.Log("Core systems initialized", LogLevel.Debug);
         }
 
         /// <summary>
-        /// Apply Harmony patches
+        /// Apply Harmony patches for input interception
         /// </summary>
         private void ApplyPatches()
         {
-            harmony = new Harmony(this.ModManifest.UniqueID);
+            // Create Harmony instance
+            harmony = new Harmony(ModManifest.UniqueID);
 
-            // Apply all patches in the Patches namespace
-            PatchAll(harmony);
-
-            Monitor.Log("Harmony patches applied", LogLevel.Info);
-        }
-
-        /// <summary>
-        /// Apply all patches found in the Patches namespace
-        /// </summary>
-        /// <param name="harmony">The Harmony instance</param>
-        private void PatchAll(Harmony harmony)
-        {
-            var patchTypes = new[]
+            try
             {
-                typeof(KeyboardDispatcher_ShouldSuppress),
-                typeof(KeyboardDispatcher_Event_TextInput),
-                typeof(KeyboardDispatcher_EventInput_CharEntered),
-                typeof(KeyboardDispatcher_EventInput_KeyDown),
-                typeof(KeyboardDispatcher_Event_KeyDown),
-                typeof(CriticalInputPatch),
-                typeof(PlayerMovementPatch),
-                typeof(InputHelper_IsDown),
-                typeof(SInputState_IsDown),
-                typeof(KeyboardState_IsKeyDown),
-                typeof(Game1_Input),
-                typeof(SMAPI_InputHelper),
-                typeof(Game1_InputIsDown)
-            };
-
-            foreach (var patchType in patchTypes)
+                // Apply all patches from the assembly automatically
+                harmony.PatchAll(Assembly.GetExecutingAssembly());
+                
+                Logger?.Log("All Harmony patches applied successfully", LogLevel.Info);
+            }
+            catch (Exception ex)
             {
-                try
-                {
-                    if (Activator.CreateInstance(patchType) is IPatch patch)
-                    {
-                        patch.Patch(harmony);
-                        Monitor.Log($"Applied patch: {patch.Name}", LogLevel.Trace);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Monitor.Log($"Failed to apply patch {patchType.Name}: {ex.Message}", LogLevel.Error);
-                }
+                Logger?.Log($"Failed to apply patches: {ex.Message}", LogLevel.Error);
+                throw;
             }
         }
 
         /// <summary>
-        /// Register console commands with SMAPI
+        /// Register console commands
         /// </summary>
-        /// <param name="helper">Mod helper</param>
         private void RegisterConsoleCommands(IModHelper helper)
         {
-            // Register each keybind command with SMAPI console
-            var commands = ConsoleCommandHandler.GetCommands();
-            
-            foreach (var command in commands.Values)
-            {
-                helper.ConsoleCommands.Add(command.Name, command.Description, (name, args) =>
-                {
-                    var result = ConsoleCommandHandler.ExecuteCommand($"{name} {string.Join(" ", args)}");
-                    Monitor.Log(result, LogLevel.Info);
-                });
-            }
+            // Initialize console command system
+            ConsoleCommandHandler.Initialize();
 
-            Monitor.Log($"Registered {commands.Count} console commands", LogLevel.Info);
+            // Register core commands
+            helper.ConsoleCommands.Add("keybind_press", "Press a virtual key briefly", HandleKeybindPress);
+            helper.ConsoleCommands.Add("keybind_hold", "Hold a virtual key for duration", HandleKeybindHold);
+            helper.ConsoleCommands.Add("keybind_release", "Release a virtual key", HandleKeybindRelease);
+            helper.ConsoleCommands.Add("keybind_clear", "Clear all virtual keybinds", HandleKeybindClear);
+            helper.ConsoleCommands.Add("keybind_status", "Show keybind manager status", HandleKeybindStatus);
+            helper.ConsoleCommands.Add("keybind_test", "Test virtual key press", HandleKeybindTest);
+            helper.ConsoleCommands.Add("test_direct_movement", "Test direct movement patch", HandleDirectMovementTest);
+
+            Logger?.Log("Console commands registered", LogLevel.Debug);
         }
 
         /// <summary>
-        /// Register event handlers
+        /// Update loop for keybind management
         /// </summary>
-        /// <param name="helper">Mod helper</param>
-        private void RegisterEventHandlers(IModHelper helper)
-        {
-            // Update keybind manager each game tick
-            helper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
-
-            // Log when save is loaded
-            helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
-
-            Monitor.Log("Event handlers registered", LogLevel.Trace);
-        }
-
-        /// <summary>
-        /// Handle game update ticks
-        /// </summary>
-        /// <param name="sender">Event sender</param>
-        /// <param name="e">Event arguments</param>
         private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
         {
-            // Update keybind manager every tick
+            // Update keybind manager to handle timeouts
             KeybindManager.Update();
         }
 
         /// <summary>
-        /// Handle save loaded
+        /// Handle keybind press command
         /// </summary>
-        /// <param name="sender">Event sender</param>
-        /// <param name="e">Event arguments</param>
-        private void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
+        private void HandleKeybindPress(string command, string[] args)
         {
-            Monitor.Log("Save loaded - keybind system ready", LogLevel.Info);
+            if (args.Length < 1)
+            {
+                Logger?.Log("Usage: keybind_press <key>", LogLevel.Info);
+                return;
+            }
+
+            if (Enum.TryParse<SButton>(args[0], true, out SButton key))
+            {
+                KeybindManager.PressKey(key);
+                Logger?.Log($"Pressed virtual key: {key}", LogLevel.Info);
+            }
+            else
+            {
+                Logger?.Log($"Invalid key: {args[0]}", LogLevel.Error);
+            }
         }
 
         /// <summary>
-        /// Cleanup when mod is disposed
+        /// Handle keybind hold command
+        /// </summary>
+        private void HandleKeybindHold(string command, string[] args)
+        {
+            if (args.Length < 1)
+            {
+                Logger?.Log("Usage: keybind_hold <key> [duration_ms]", LogLevel.Info);
+                return;
+            }
+
+            if (Enum.TryParse<SButton>(args[0], true, out SButton key))
+            {
+                int duration = 1000; // Default 1 second
+                if (args.Length > 1 && int.TryParse(args[1], out int customDuration))
+                {
+                    duration = customDuration;
+                }
+
+                KeybindManager.HoldKey(key, duration);
+                Logger?.Log($"Holding virtual key: {key} for {duration}ms", LogLevel.Info);
+            }
+            else
+            {
+                Logger?.Log($"Invalid key: {args[0]}", LogLevel.Error);
+            }
+        }
+
+        /// <summary>
+        /// Handle keybind release command
+        /// </summary>
+        private void HandleKeybindRelease(string command, string[] args)
+        {
+            if (args.Length < 1)
+            {
+                Logger?.Log("Usage: keybind_release <key>", LogLevel.Info);
+                return;
+            }
+
+            if (Enum.TryParse<SButton>(args[0], true, out SButton key))
+            {
+                KeybindManager.ReleaseKey(key);
+                Logger?.Log($"Released virtual key: {key}", LogLevel.Info);
+            }
+            else
+            {
+                Logger?.Log($"Invalid key: {args[0]}", LogLevel.Error);
+            }
+        }
+
+        /// <summary>
+        /// Handle keybind clear command
+        /// </summary>
+        private void HandleKeybindClear(string command, string[] args)
+        {
+            KeybindManager.ClearAll();
+            Logger?.Log("Cleared all virtual keybinds", LogLevel.Info);
+        }
+
+        /// <summary>
+        /// Handle keybind status command
+        /// </summary>
+        private void HandleKeybindStatus(string command, string[] args)
+        {
+            var status = KeybindManager.GetDebugInfo();
+            Logger?.Log($"Keybind Status: {status}", LogLevel.Info);
+        }
+
+        /// <summary>
+        /// Handle keybind test command
+        /// </summary>
+        private void HandleKeybindTest(string command, string[] args)
+        {
+            Logger?.Log("Testing virtual key press with 'W' key for movement...", LogLevel.Info);
+            KeybindManager.HoldKey(SButton.W, 2000); // Hold W for 2 seconds
+            Logger?.Log("Virtual W key should now be held for 2 seconds", LogLevel.Info);
+        }
+
+        /// <summary>
+        /// Handle direct movement test command
+        /// </summary>
+        private void HandleDirectMovementTest(string command, string[] args)
+        {
+            var testCommand = new Console.DirectMovementTestCommand(Logger!);
+            testCommand.Execute(command, args);
+        }
+
+        /// <summary>
+        /// Clean up resources when the mod is disposed
         /// </summary>
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
-                // Clear all virtual keys
-                KeybindManager.ClearAllKeys();
-
-                // Unpatch Harmony
-                harmony?.UnpatchAll(this.ModManifest.UniqueID);
-                harmony = null;
-
-                Monitor.Log("VirtualKeyboard mod disposed", LogLevel.Trace);
+                // Unapply patches
+                harmony?.UnpatchAll(ModManifest.UniqueID);
+                
+                // Clean up keybinds
+                KeybindManager.ClearAll();
             }
-
+            
             base.Dispose(disposing);
         }
     }
