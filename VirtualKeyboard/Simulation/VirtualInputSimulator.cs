@@ -29,6 +29,9 @@ namespace VirtualKeyboard.Simulation
         private readonly Dictionary<Keys, bool> _heldKeys = new();
         private readonly Dictionary<Keys, bool> _pressedKeys = new();
         private readonly Dictionary<Keys, bool> _releasedKeys = new();
+        
+        // Track last keyboard state to reduce logging spam
+        private string _lastKeyString = "";
 
         public static VirtualInputSimulator Instance { get; } = new();
         public static bool Active { get; set; } = false;
@@ -149,11 +152,15 @@ namespace VirtualKeyboard.Simulation
         /// </summary>
         public void SetKeyPressed(Keys key, bool pressed)
         {
+            ModEntry.Monitor.Log($"[DEBUG] VirtualInputSimulator.SetKeyPressed({key}, {pressed})", LogLevel.Info);
+            
             if (pressed)
             {
                 _heldKeys[key] = true;
                 _pressedKeys[key] = true;
                 _releasedKeys.Remove(key);
+                
+                ModEntry.Monitor.Log($"[DEBUG] Key {key} added to _heldKeys. Total held: {_heldKeys.Count}", LogLevel.Info);
                 
                 // CRITICAL FIX: Also handle movement-specific flags for movement keys
                 switch (key)
@@ -173,6 +180,7 @@ namespace VirtualKeyboard.Simulation
                     case Keys.D:
                         _moveRightPressed = true;
                         _moveRightHeld = true;
+                        ModEntry.Monitor.Log($"[DEBUG] Set D movement flags: _moveRightPressed=true, _moveRightHeld=true", LogLevel.Info);
                         break;
                 }
             }
@@ -181,6 +189,8 @@ namespace VirtualKeyboard.Simulation
                 _heldKeys.Remove(key);
                 _pressedKeys.Remove(key);
                 _releasedKeys[key] = true;
+                
+                ModEntry.Monitor.Log($"[DEBUG] Key {key} removed from _heldKeys. Total held: {_heldKeys.Count}", LogLevel.Info);
                 
                 // CRITICAL FIX: Also clear movement-specific flags for movement keys
                 switch (key)
@@ -204,6 +214,7 @@ namespace VirtualKeyboard.Simulation
                         _moveRightPressed = false;
                         _moveRightHeld = false;
                         _moveRightReleased = true;
+                        ModEntry.Monitor.Log($"[DEBUG] Cleared D movement flags: _moveRightPressed=false, _moveRightHeld=false, _moveRightReleased=true", LogLevel.Info);
                         break;
                 }
             }
@@ -239,7 +250,14 @@ namespace VirtualKeyboard.Simulation
             if (_moveLeftPressed || _moveLeftHeld)
                 pressedKeys.Add(Keys.A);
             if (_moveRightPressed || _moveRightHeld)
+            {
                 pressedKeys.Add(Keys.D);
+                // Only log occasionally to reduce spam
+                if (pressedKeys.Count == 1) // Only when D is the only key
+                {
+                    ModEntry.Monitor.Log($"[DEBUG] GetKeyboardState including D key (_moveRightPressed={_moveRightPressed}, _moveRightHeld={_moveRightHeld})", LogLevel.Info);
+                }
+            }
 
             // Add generic held keys
             foreach (var key in _heldKeys.Keys)
@@ -249,22 +267,15 @@ namespace VirtualKeyboard.Simulation
                     pressedKeys.Add(key);
                 }
             }
-
-            // Add keys from KeybindManager
-            if (KeybindManager.IsEnabled)
+            
+            // Only log key state changes, not every call
+            var keyString = string.Join(", ", pressedKeys);
+            if (_lastKeyString != keyString)
             {
-                var heldKeys = KeybindManager.GetHeldKeys();
-                foreach (var sButton in heldKeys)
-                {
-                    // Convert SButton to Keys if possible
-                    if (TryConvertSButtonToKeys(sButton, out Keys key))
-                    {
-                        if (!pressedKeys.Contains(key))
-                            pressedKeys.Add(key);
-                    }
-                }
+                ModEntry.Monitor.Log($"[DEBUG] GetKeyboardState returning {pressedKeys.Count} keys: [{keyString}]", LogLevel.Info);
+                _lastKeyString = keyString;
             }
-
+            
             return new KeyboardState(pressedKeys.ToArray());
         }
 

@@ -212,6 +212,12 @@ namespace VirtualKeyboard
         /// <param name="e">Event arguments</param>
         private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
         {
+            // TRACE: Log that this event handler is being called
+            if (KeybindManager.GetHeldKeys().Any())
+            {
+                Monitor.Log($"[TRACE] OnUpdateTicked called with {KeybindManager.GetHeldKeys().Count()} held keys", LogLevel.Trace);
+            }
+            
             // Update keybind manager every tick
             KeybindManager.Update();
         }

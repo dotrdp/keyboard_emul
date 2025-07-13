@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using StardewModdingAPI;
 using VirtualKeyboard.Simulation;
@@ -76,20 +77,51 @@ namespace VirtualKeyboard
             {
                 ModEntry.Monitor.Log($"FORCE RELEASING stuck key: {key}", LogLevel.Warn);
                 
+                // Check current state before force release
+                var wasInHeldKeys = KeybindManager.GetHeldKeys().Contains(key);
+                ModEntry.Monitor.Log($"Key {key} was in HeldKeys: {wasInHeldKeys}", LogLevel.Info);
+                
                 // Clear from KeybindManager
                 KeybindManager.ReleaseKey(key);
+                
+                // Check if it was removed
+                var stillInHeldKeys = KeybindManager.GetHeldKeys().Contains(key);
+                ModEntry.Monitor.Log($"Key {key} still in HeldKeys after ReleaseKey: {stillInHeldKeys}", LogLevel.Info);
                 
                 // Clear from VirtualInputSimulator
                 if (KeybindManager.TryConvertSButtonToKeys(key, out var xnaKey))
                 {
                     VirtualInputSimulator.Instance.SetKeyPressed(xnaKey, false);
+                    ModEntry.Monitor.Log($"Called VirtualInputSimulator.SetKeyPressed({xnaKey}, false)", LogLevel.Info);
+                    
+                    // Force clear the movement flags if it's a movement key
+                    VirtualInputSimulator.Instance.ClearAllInputs();
+                    ModEntry.Monitor.Log($"Called VirtualInputSimulator.ClearAllInputs()", LogLevel.Info);
                 }
                 
-                // Clear Windows input if enabled
+                // Clear Windows input if enabled - DISABLED FOR DEBUG
+                // The Windows input simulation seems to be causing phantom keystrokes
+                /*
                 if (KeybindManager.UseWindowsInputWhenMinimized && KeybindManager.TryConvertSButtonToKeys(key, out var winKey))
                 {
                     WindowsInputSimulator.SendKeyInput(winKey, false);
+                    ModEntry.Monitor.Log($"Called WindowsInputSimulator.SendKeyInput({winKey}, false)", LogLevel.Info);
                 }
+                */
+                ModEntry.Monitor.Log($"Skipped Windows input release to prevent phantom keystrokes", LogLevel.Info);
+                
+                // Force disable VirtualInputSimulator if no keys are held
+                // CRITICAL FIX: Don't disable VirtualInputSimulator.Active!
+                // Disabling it causes the game to fall back to real keyboard state
+                // which might still have stuck keys from Windows input simulation
+                /*
+                if (!KeybindManager.GetHeldKeys().Any())
+                {
+                    VirtualInputSimulator.Active = false;
+                    ModEntry.Monitor.Log($"Disabled VirtualInputSimulator.Active", LogLevel.Info);
+                }
+                */
+                ModEntry.Monitor.Log($"Keeping VirtualInputSimulator.Active = true to prevent fallback to real keyboard", LogLevel.Info);
                 
                 ModEntry.Monitor.Log($"Force released key: {key}", LogLevel.Info);
             }

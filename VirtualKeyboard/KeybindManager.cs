@@ -65,6 +65,10 @@ namespace VirtualKeyboard
             ReleasedKeys.Clear();
             ActiveSequences.Clear();
             
+            // CRITICAL: Enable VirtualInputSimulator immediately to prevent fallback to real keyboard
+            VirtualInputSimulator.Active = true;
+            Patches.IPatch.Info("Enabled VirtualInputSimulator.Active at initialization");
+            
             // Initialize Windows input simulator for minimized game support
             if (UseWindowsInputWhenMinimized)
             {
@@ -77,7 +81,17 @@ namespace VirtualKeyboard
         /// </summary>
         public static void Update()
         {
-            if (!IsEnabled) return;
+            // TRACE: Always log that Update is being called, even if disabled
+            Patches.IPatch.Trace($"KeybindManager.Update() called - IsEnabled: {IsEnabled}, HeldKeys.Count: {HeldKeys.Count}");
+            
+            if (!IsEnabled) 
+            {
+                if (HeldKeys.Count > 0)
+                {
+                    Patches.IPatch.Trace($"KeybindManager.Update() DISABLED but {HeldKeys.Count} keys still held!");
+                }
+                return;
+            }
 
             // Clear frame-specific collections
             PressedKeys.Clear();
@@ -101,8 +115,20 @@ namespace VirtualKeyboard
                 kvp.Value != DateTime.MaxValue && 
                 currentTime >= kvp.Value).ToList();
 
+            // TEMPORARY DEBUG: Check if Update is being called and finding expired keys
+            if (HeldKeys.Count > 0)
+            {
+                Patches.IPatch.Trace($"[DEBUG] Update called - HeldKeys: {HeldKeys.Count}, ExpiredKeys: {expiredKeys.Count}, CurrentTime: {currentTime:HH:mm:ss.fff}");
+                foreach (var kvp in HeldKeys)
+                {
+                    var expired = kvp.Value != DateTime.MaxValue && currentTime >= kvp.Value;
+                    Patches.IPatch.Trace($"[DEBUG] Key {kvp.Key} expires at {kvp.Value:HH:mm:ss.fff}, expired: {expired}");
+                }
+            }
+
             foreach (var kvp in expiredKeys)
             {
+                Patches.IPatch.Trace($"[DEBUG] Normal timer releasing expired key: {kvp.Key}");
                 ReleaseKey(kvp.Key);
             }
         }
@@ -158,7 +184,9 @@ namespace VirtualKeyboard
                     // CRITICAL: Send key release to VirtualInputSimulator first
                     VirtualInputSimulator.Instance.SetKeyPressed(xnaKey, false);
                     
-                    // Force Windows API key release to prevent sticky keys
+                    // Force Windows API key release - DISABLED FOR DEBUG
+                    // The Windows input simulation seems to be causing phantom keystrokes
+                    /*
                     if (UseWindowsInputWhenMinimized)
                     {
                         WindowsInputSimulator.SendKeyInput(xnaKey, false);
@@ -169,14 +197,18 @@ namespace VirtualKeyboard
                             WindowsInputSimulator.SendKeyInput(xnaKey, false);
                         });
                     }
+                    */
                 }
                 
-                // If no more keys are held, disable focus override and clear all virtual input
+                // If no more keys are held, clear all virtual input but KEEP Active = true
+                // CRITICAL FIX: Don't disable VirtualInputSimulator.Active!
+                // Disabling it causes the game to fall back to real keyboard state
                 if (HeldKeys.Count == 0)
                 {
-                    VirtualInputSimulator.Active = false;
+                    // VirtualInputSimulator.Active = false; // DISABLED - causes fallback to real keyboard
                     // Clear all virtual input to prevent sticky keys
                     VirtualInputSimulator.Instance.ClearAllInputs();
+                    Patches.IPatch.Info("Keeping VirtualInputSimulator.Active = true to prevent fallback to real keyboard");
                     
                     // Force clear all currently held Windows keys as a safety measure
                     if (UseWindowsInputWhenMinimized)
@@ -203,6 +235,9 @@ namespace VirtualKeyboard
             HeldKeys[key] = expiryTime;
             KeyStateChanged?.Invoke(key, true);
             
+            // DEBUG: Confirm key was added to HeldKeys
+            Patches.IPatch.Info($"[DEBUG] HoldKey: Added {key} to HeldKeys, expires at {expiryTime:HH:mm:ss.fff}, HeldKeys.Count: {HeldKeys.Count}");
+            
             // CRITICAL FAILSAFE: Start a timer that will forcibly release the key
             KeyReleaseTimer.StartTimer(key, durationMs);
             
@@ -212,12 +247,14 @@ namespace VirtualKeyboard
                 VirtualInputSimulator.Active = true; // Enable focus override
                 VirtualInputSimulator.Instance.SetKeyPressed(xnaKey, true);
                 
-                // Also send to Windows input simulator for minimized game support
+                // Windows input disabled for debug - seems to cause phantom keystrokes
+                /*
                 if (UseWindowsInputWhenMinimized)
                 {
                     // Fire and forget for Windows input
                     System.Threading.Tasks.Task.Run(async () => await WindowsInputSimulator.SendKeyInputAsync(xnaKey, durationMs));
                 }
+                */
             }
         }
 
@@ -344,7 +381,7 @@ namespace VirtualKeyboard
             
             // Clear virtual input simulator
             VirtualInputSimulator.Instance.ClearAllInputs();
-            VirtualInputSimulator.Active = false;
+            // VirtualInputSimulator.Active = false; // DISABLED - we want to keep virtual input active
             
             // Force clear Windows keys as safety measure
             if (UseWindowsInputWhenMinimized)
@@ -382,10 +419,13 @@ namespace VirtualKeyboard
                 Keys.LeftShift, Keys.RightShift, Keys.LeftControl, Keys.RightControl // Modifiers
             };
 
+            // Windows input disabled to prevent phantom keystrokes
+            /*
             foreach (var key in keysToRelease)
             {
                 WindowsInputSimulator.SendKeyInput(key, false);
             }
+            */
         }
 
         /// <summary>

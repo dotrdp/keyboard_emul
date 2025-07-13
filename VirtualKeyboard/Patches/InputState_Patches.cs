@@ -3,6 +3,7 @@ using HarmonyLib;
 using Microsoft.Xna.Framework.Input;
 using System.Reflection;
 using VirtualKeyboard.Simulation;
+using StardewModdingAPI;
 
 namespace VirtualKeyboard.Patches
 {
@@ -30,8 +31,12 @@ namespace VirtualKeyboard.Patches
                 // Always override when virtual input is active - this prevents cached state issues
                 if (VirtualInputSimulator.Active)
                 {
+                    ModEntry.Monitor.Log($"[DEBUG] InputState patch intercepting GetKeyboardState() - VirtualInputSimulator.Active = true", LogLevel.Info);
+                    
                     // Return ONLY our virtual keyboard state - ignore any cached real keyboard state
                     __result = VirtualInputSimulator.Instance.GetKeyboardState();
+                    
+                    ModEntry.Monitor.Log($"[DEBUG] InputState patch returning virtual keyboard state", LogLevel.Info);
                     return false; // Skip original method completely
                 }
                 
