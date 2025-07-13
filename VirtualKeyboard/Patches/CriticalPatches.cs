@@ -139,22 +139,13 @@ namespace VirtualKeyboard.Patches
 
         public static bool MovePositionPrefix(StardewValley.Farmer __instance)
         {
-            // Let virtual movement through
-            if (KeybindManager.HasActiveKeybinds)
-            {
-                Info("Virtual keybinds active during player movement");
-            }
+            // Let virtual movement through - no logging to avoid spam
             return true; // Continue with original method
         }
 
         public static void GetMovementSpeedPostfix(ref float __result)
         {
-            // Ensure movement speed is available for virtual movement
-            if (KeybindManager.HasActiveKeybinds)
-            {
-                // Don't modify speed, just log that we're in movement code
-                Trace($"Movement speed: {__result} (virtual keys active)");
-            }
+            // Ensure movement speed is available for virtual movement - no logging to avoid spam
         }
     }
 }

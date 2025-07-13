@@ -96,9 +96,10 @@ namespace VirtualKeyboard
             }
 
             // Check for expired held keys
+            var currentTime = DateTime.Now;
             var expiredKeys = HeldKeys.Where(kvp => 
                 kvp.Value != DateTime.MaxValue && 
-                DateTime.Now > kvp.Value).ToList();
+                currentTime >= kvp.Value).ToList();
 
             foreach (var kvp in expiredKeys)
             {
@@ -141,6 +142,9 @@ namespace VirtualKeyboard
         public static void ReleaseKey(SButton key)
         {
             if (!IsEnabled) return;
+
+            // Cancel the failsafe timer since we're manually releasing
+            KeyReleaseTimer.CancelTimer(key);
 
             if (HeldKeys.ContainsKey(key))
             {
@@ -194,19 +198,27 @@ namespace VirtualKeyboard
         {
             if (!IsEnabled) return;
 
+            var expiryTime = DateTime.Now.AddMilliseconds(durationMs);
             PressedKeys.Add(key);
-            HeldKeys[key] = DateTime.Now.AddMilliseconds(durationMs);
+            HeldKeys[key] = expiryTime;
             KeyStateChanged?.Invoke(key, true);
             
-            // Also send to Windows input simulator for minimized game support
-            if (UseWindowsInputWhenMinimized && TryConvertSButtonToKeys(key, out var xnaKey))
+            // CRITICAL FAILSAFE: Start a timer that will forcibly release the key
+            KeyReleaseTimer.StartTimer(key, durationMs);
+            
+            // Convert SButton to Keys and send to VirtualInputSimulator
+            if (TryConvertSButtonToKeys(key, out var xnaKey))
             {
                 VirtualInputSimulator.Active = true; // Enable focus override
-                // Fire and forget for Windows input
-                System.Threading.Tasks.Task.Run(async () => await WindowsInputSimulator.SendKeyInputAsync(xnaKey, durationMs));
+                VirtualInputSimulator.Instance.SetKeyPressed(xnaKey, true);
+                
+                // Also send to Windows input simulator for minimized game support
+                if (UseWindowsInputWhenMinimized)
+                {
+                    // Fire and forget for Windows input
+                    System.Threading.Tasks.Task.Run(async () => await WindowsInputSimulator.SendKeyInputAsync(xnaKey, durationMs));
+                }
             }
-            
-            // Silent operation - only log on demand via status commands
         }
 
         /// <summary>
@@ -379,7 +391,7 @@ namespace VirtualKeyboard
         /// <summary>
         /// Convert SMAPI SButton to XNA Keys for Windows input simulation
         /// </summary>
-        private static bool TryConvertSButtonToKeys(SButton sButton, out Keys key)
+        public static bool TryConvertSButtonToKeys(SButton sButton, out Keys key)
         {
             key = sButton switch
             {

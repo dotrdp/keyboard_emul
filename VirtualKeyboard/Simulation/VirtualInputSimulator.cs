@@ -154,12 +154,58 @@ namespace VirtualKeyboard.Simulation
                 _heldKeys[key] = true;
                 _pressedKeys[key] = true;
                 _releasedKeys.Remove(key);
+                
+                // CRITICAL FIX: Also handle movement-specific flags for movement keys
+                switch (key)
+                {
+                    case Keys.W:
+                        _moveUpPressed = true;
+                        _moveUpHeld = true;
+                        break;
+                    case Keys.S:
+                        _moveDownPressed = true;
+                        _moveDownHeld = true;
+                        break;
+                    case Keys.A:
+                        _moveLeftPressed = true;
+                        _moveLeftHeld = true;
+                        break;
+                    case Keys.D:
+                        _moveRightPressed = true;
+                        _moveRightHeld = true;
+                        break;
+                }
             }
             else
             {
                 _heldKeys.Remove(key);
                 _pressedKeys.Remove(key);
                 _releasedKeys[key] = true;
+                
+                // CRITICAL FIX: Also clear movement-specific flags for movement keys
+                switch (key)
+                {
+                    case Keys.W:
+                        _moveUpPressed = false;
+                        _moveUpHeld = false;
+                        _moveUpReleased = true;
+                        break;
+                    case Keys.S:
+                        _moveDownPressed = false;
+                        _moveDownHeld = false;
+                        _moveDownReleased = true;
+                        break;
+                    case Keys.A:
+                        _moveLeftPressed = false;
+                        _moveLeftHeld = false;
+                        _moveLeftReleased = true;
+                        break;
+                    case Keys.D:
+                        _moveRightPressed = false;
+                        _moveRightHeld = false;
+                        _moveRightReleased = true;
+                        break;
+                }
             }
         }
 

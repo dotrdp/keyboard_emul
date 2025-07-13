@@ -49,14 +49,17 @@ namespace VirtualKeyboard.Patches
             // Replicate the original method logic but without the focus checks
             if (lastKeyStateTick != Game1.ticks || !keyState.HasValue)
             {
+                // CRITICAL FIX: Use VirtualInputSimulator's keyboard state instead of physical keyboard
+                var virtualKeyboardState = VirtualInputSimulator.Instance.GetKeyboardState();
+                
                 if (ignoredKeys?.Count == 0)
                 {
-                    keyState = currentKeyboardState;
+                    keyState = virtualKeyboardState;
                 }
                 else if (ignoredKeys != null && pressedKeys != null)
                 {
                     pressedKeys.Clear();
-                    pressedKeys.AddRange(currentKeyboardState.GetPressedKeys());
+                    pressedKeys.AddRange(virtualKeyboardState.GetPressedKeys());
                     
                     for (int i = 0; i < ignoredKeys.Count; i++)
                     {
