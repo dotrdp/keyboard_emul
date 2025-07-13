@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
 using StardewModdingAPI;
+using StardewValley;
+using StardewValley.Menus;
 using VirtualKeyboard.Simulation;
 
 namespace VirtualKeyboard.Console
@@ -359,6 +361,136 @@ This allows keybind simulation to work even when the game is minimized.";
         {
             WindowsInputSimulator.Reinitialize();
             return $"Windows input reinitialized. Status: {WindowsInputSimulator.GetStatus()}";
+        }
+    }
+
+    /// <summary>
+    /// Command to skip current event via keybind
+    /// </summary>
+    public class KeybindSkipEventCommand : IConsoleCommand
+    {
+        public string Name => "keybind_skip_event";
+        public string Description => "Skip the current event if skippable";
+        public string Usage => "keybind_skip_event";
+
+        public string Execute(string[] args)
+        {
+            if (!Context.IsWorldReady)
+                return "Error: No save file loaded";
+
+            if (Game1.CurrentEvent != null && Game1.CurrentEvent.skippable)
+            {
+                Game1.CurrentEvent.skipEvent();
+                return "Event skipped successfully";
+            }
+            else if (Game1.CurrentEvent != null)
+            {
+                return "Current event is not skippable";
+            }
+            else
+            {
+                return "No event is currently active";
+            }
+        }
+    }
+
+    /// <summary>
+    /// Command to skip current dialogue via keybind
+    /// </summary>
+    public class KeybindSkipDialogueCommand : IConsoleCommand
+    {
+        public string Name => "keybind_skip_dialogue";
+        public string Description => "Skip the current dialogue box";
+        public string Usage => "keybind_skip_dialogue [speed]";
+
+        public string Execute(string[] args)
+        {
+            if (!Context.IsWorldReady)
+                return "Error: No save file loaded";
+
+            int speed = 1;
+            if (args.Length > 0 && int.TryParse(args[0], out int parsedSpeed))
+            {
+                speed = Math.Max(1, parsedSpeed);
+            }
+
+            if (!(Game1.activeClickableMenu is DialogueBox box))
+            {
+                return "No dialogue box is currently active";
+            }
+
+            int runs = 0;
+            box.characterIndexInDialogue = box.getCurrentString().Length - 1;
+
+            while (speed > runs && Game1.activeClickableMenu is DialogueBox box2 && !box2.isQuestion)
+            {
+                runs++;
+                box2.transitioning = false;
+                box2.safetyTimer = 0;
+                box2.receiveLeftClick(0, 0, true);
+                box2.characterIndexInDialogue = box2.getCurrentString().Length - 1;
+            }
+
+            return $"Skipped {runs} dialogue line(s)";
+        }
+    }
+
+    /// <summary>
+    /// Command to skip current letter via keybind
+    /// </summary>
+    public class KeybindSkipLetterCommand : IConsoleCommand
+    {
+        public string Name => "keybind_skip_letter";
+        public string Description => "Skip the current letter/mail";
+        public string Usage => "keybind_skip_letter [speed]";
+
+        public string Execute(string[] args)
+        {
+            if (!Context.IsWorldReady)
+                return "Error: No save file loaded";
+
+            int speed = 1;
+            if (args.Length > 0 && int.TryParse(args[0], out int parsedSpeed))
+            {
+                speed = Math.Max(1, parsedSpeed);
+            }
+
+            if (!(Game1.activeClickableMenu is LetterViewerMenu m))
+            {
+                return "No letter is currently open";
+            }
+
+            int runs = 0;
+
+            // Skip through pages
+            while (speed + 1 > runs && m.page < m.mailMessage.Count - 1)
+            {
+                runs++;
+                m.page++;
+                Game1.playSound("shwip");
+                m.OnPageChange();
+            }
+
+            // If we've gone through all pages and there's no interactable content, close the letter
+            if (Game1.activeClickableMenu is LetterViewerMenu m2 && !m2.HasInteractable())
+            {
+                if (speed > runs)
+                {
+                    Game1.playSound("bigDeSelect");
+                    if (!m2.isFromCollection)
+                    {
+                        m2.exitThisMenu(m2.ShouldPlayExitSound());
+                        return $"Skipped {runs} page(s) and closed letter";
+                    }
+                    else
+                    {
+                        m2.destroy = true;
+                        return $"Skipped {runs} page(s) and destroyed collection letter";
+                    }
+                }
+            }
+
+            return $"Skipped {runs} page(s) in letter";
         }
     }
 }

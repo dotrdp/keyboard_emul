@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Reflection;
 using HarmonyLib;
 using StardewModdingAPI;
@@ -86,10 +87,11 @@ namespace VirtualKeyboard
             PatchAll(harmony);
 
             // Apply additional patches using HarmonyPatchAll for attribute-based patches
+            // This will automatically apply EventSkipPatches, InputState_Patches, StartupPatches
             try
             {
                 harmony.PatchAll(Assembly.GetExecutingAssembly());
-                Monitor.Log("Applied attribute-based patches (InputState_Patches, StartupPatches)", LogLevel.Trace);
+                Monitor.Log("Applied attribute-based patches (InputState_Patches, StartupPatches, EventSkipPatches)", LogLevel.Trace);
             }
             catch (Exception ex)
             {
@@ -178,16 +180,44 @@ namespace VirtualKeyboard
                 new StopMovementCommand()
             };
 
-            foreach (var command in movementCommands)
+            // Register skip commands for events and dialogues
+            var skipCommands = new IConsoleCommand[]
             {
-                helper.ConsoleCommands.Add(command.Name, command.Description, (name, args) =>
-                {
-                    var result = command.Execute(args);
-                    Monitor.Log(result, LogLevel.Info);
-                });
+                new SkipCommands(),
+                new AutoSkipCommands(),
+                new AutoSkipStatusCommand()
+            };
+
+            Monitor.Log($"About to register {skipCommands.Length} skip commands", LogLevel.Info);
+            foreach (var cmd in skipCommands)
+            {
+                Monitor.Log($"Skip command created: {cmd.Name} - {cmd.Description}", LogLevel.Debug);
             }
 
-            Monitor.Log($"Registered {commands.Count + movementCommands.Length} console commands", LogLevel.Info);
+            foreach (var command in movementCommands.Concat(skipCommands))
+            {
+                try
+                {
+                    Monitor.Log($"Registering command: {command.Name}", LogLevel.Debug);
+                    helper.ConsoleCommands.Add(command.Name, command.Description, (name, args) =>
+                    {
+                        Monitor.Log($"Command '{name}' called with args: [{string.Join(", ", args)}]", LogLevel.Debug);
+                        var result = command.Execute(args);
+                        Monitor.Log(result, LogLevel.Info);
+                    });
+                    Monitor.Log($"Successfully registered command: {command.Name}", LogLevel.Debug);
+                }
+                catch (Exception ex)
+                {
+                    Monitor.Log($"Failed to register command {command.Name}: {ex.Message}", LogLevel.Error);
+                }
+            }
+
+            Monitor.Log($"Registered {commands.Count + movementCommands.Length + skipCommands.Length} console commands", LogLevel.Info);
+            
+            // Log auto-skip status
+            var autoSkipSettings = AutoSkipCommands.GetSettings();
+            Monitor.Log($"🚀 Auto-Skip Status: Events={autoSkipSettings.events}, Dialogues={autoSkipSettings.dialogues}, Speed={autoSkipSettings.speed}", LogLevel.Info);
         }
 
         /// <summary>
@@ -220,6 +250,21 @@ namespace VirtualKeyboard
             
             // Update keybind manager every tick
             KeybindManager.Update();
+            
+            // Check for auto-skip opportunities
+            if (Context.IsWorldReady)
+            {
+                // Add debug logging every 60 ticks (1 second) to verify this is being called
+                if (e.Ticks % 60 == 0)
+                {
+                    var (events, dialogues, speed) = AutoSkipCommands.GetSettings();
+                    Monitor.Log($"Auto-skip check (every 60 ticks): Events={events}, Dialogues={dialogues}, Speed={speed}", LogLevel.Trace);
+                }
+                
+                AutoSkipCommands.CheckAutoSkipEvent();
+                AutoSkipCommands.CheckAutoSkipDialogue();
+                AutoSkipCommands.CheckAutoSkipLetter();
+            }
         }
 
         /// <summary>
