@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework.Input;
 using StardewValley;
 using System.Reflection;
 using VirtualKeyboard.Simulation;
+using System;
 
 namespace VirtualKeyboard.Patches
 {
@@ -217,6 +218,123 @@ namespace VirtualKeyboard.Patches
                         __instance.forceTimePass = false;
                     }
                 }));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Patches to ensure virtual input works immediately when the game starts
+    /// </summary>
+    [HarmonyPatch]
+    public class Game1_Startup_Patches
+    {
+        /// <summary>
+        /// Patch Game1.loadForNewGame to ensure virtual input is ready for new games
+        /// </summary>
+        [HarmonyPatch(typeof(Game1), "loadForNewGame")]
+        [HarmonyPostfix]
+        public static void LoadForNewGame_Postfix()
+        {
+            // Ensure virtual input works immediately when starting a new game
+            if (VirtualInputSimulator.Active)
+            {
+                // Initialize input state immediately without waiting for focus
+                Game1.delayedActions.Add(new DelayedAction(50, delegate
+                {
+                    InitializeVirtualInputForStartup();
+                }));
+            }
+        }
+
+        /// <summary>
+        /// Patch for when loading an existing save file
+        /// </summary>
+        [HarmonyPatch(typeof(SaveGame), "loadDataToLocations")]
+        [HarmonyPostfix]
+        public static void LoadDataToLocations_Postfix()
+        {
+            // Ensure virtual input works immediately when loading a save
+            if (VirtualInputSimulator.Active)
+            {
+                Game1.delayedActions.Add(new DelayedAction(100, delegate
+                {
+                    InitializeVirtualInputForStartup();
+                }));
+            }
+        }
+
+        /// <summary>
+        /// Patch Game1.UpdateViewportForScreenSizeChange to ensure input works after screen changes
+        /// </summary>
+        [HarmonyPatch(typeof(Game1), "UpdateViewportForScreenSizeChange")]
+        [HarmonyPostfix]
+        public static void UpdateViewportForScreenSizeChange_Postfix()
+        {
+            if (VirtualInputSimulator.Active)
+            {
+                // Ensure input continues working after screen size changes
+                Game1.delayedActions.Add(new DelayedAction(50, delegate
+                {
+                    EnsureVirtualInputActive();
+                }));
+            }
+        }
+
+        /// <summary>
+        /// Initialize virtual input for game startup scenarios
+        /// </summary>
+        private static void InitializeVirtualInputForStartup()
+        {
+            try
+            {
+                if (Game1.player != null && VirtualInputSimulator.Active)
+                {
+                    // Clear any movement state that might interfere
+                    Game1.player.movementDirections.Clear();
+                    Game1.player.setMoving(0);
+                    Game1.player.Halt();
+                    
+                    // Ensure the player can move
+                    Game1.player.CanMove = true;
+                    Game1.player.freezePause = 0;
+                    Game1.freezeControls = false;
+                    
+                    // Clear any forced states
+                    Game1.player.forceTimePass = false;
+                    Game1.player.UsingTool = false;
+                    
+                    // Ensure sprite animation is not paused
+                    if (Game1.player.FarmerSprite != null)
+                    {
+                        Game1.player.FarmerSprite.PauseForSingleAnimation = false;
+                    }
+                    
+                    ModEntry.Monitor.Log("Virtual input initialized for game startup", StardewModdingAPI.LogLevel.Debug);
+                }
+            }
+            catch (Exception ex)
+            {
+                ModEntry.Monitor.Log($"Error initializing virtual input for startup: {ex.Message}", StardewModdingAPI.LogLevel.Error);
+            }
+        }
+
+        /// <summary>
+        /// Ensure virtual input remains active after various game events
+        /// </summary>
+        private static void EnsureVirtualInputActive()
+        {
+            try
+            {
+                if (Game1.player != null && VirtualInputSimulator.Active)
+                {
+                    // Just ensure the player can move and controls aren't frozen
+                    Game1.player.CanMove = true;
+                    Game1.freezeControls = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                ModEntry.Monitor.Log($"Error ensuring virtual input active: {ex.Message}", StardewModdingAPI.LogLevel.Error);
             }
         }
     }

@@ -85,6 +85,17 @@ namespace VirtualKeyboard
             // Apply all patches in the Patches namespace
             PatchAll(harmony);
 
+            // Apply additional patches using HarmonyPatchAll for attribute-based patches
+            try
+            {
+                harmony.PatchAll(Assembly.GetExecutingAssembly());
+                Monitor.Log("Applied attribute-based patches (InputState_Patches, StartupPatches)", LogLevel.Trace);
+            }
+            catch (Exception ex)
+            {
+                Monitor.Log($"Failed to apply attribute-based patches: {ex.Message}", LogLevel.Error);
+            }
+
             Monitor.Log("Harmony patches applied", LogLevel.Info);
         }
 
