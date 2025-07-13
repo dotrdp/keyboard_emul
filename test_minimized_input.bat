@@ -29,11 +29,17 @@ echo.
 echo KEY TECHNICAL CHANGES:
 echo - Added InputState_Patches.cs to bypass focus checks in GetKeyboardState()
 echo - This is the core method that was blocking input when minimized
+echo - CRITICAL: Added Game1.IsActiveNoOverlay patch to ensure UpdateControlInput runs
 echo - Enhanced VirtualInputSimulator with generic key tracking (SetKeyPressed method)
 echo - KeybindManager now sends keys to both VirtualInputSimulator and Windows API
 echo - SInputState patches now properly inject virtual keys into keyboard state
 echo - Focus override patches (HasKeyboardFocus, IsMainInstance) work together
 echo - Windows API input simulation provides low-level input injection
 echo - Removed problematic IsActive patch that caused build errors
+echo.
+echo SOLUTION: The real issue was TWO-FOLD:
+echo 1. InputState.GetKeyboardState() returns empty state when not focused
+echo 2. Game1.IsActiveNoOverlay returns false, preventing UpdateControlInput() calls
+echo Both are now patched to allow input processing when minimized!
 echo.
 pause

@@ -92,4 +92,24 @@ namespace VirtualKeyboard.Patches
             return false; // Skip the original method
         }
     }
+    
+    /// <summary>
+    /// Critical patch for Game1.IsActiveNoOverlay to ensure UpdateControlInput is called
+    /// even when the game is minimized and virtual input is active.
+    /// </summary>
+    [HarmonyPatch(typeof(Game1))]
+    public class Game1_IsActiveNoOverlay_Patches
+    {
+        [HarmonyPatch("IsActiveNoOverlay", MethodType.Getter)]
+        [HarmonyPostfix]
+        public static void IsActiveNoOverlay_Postfix(ref bool __result)
+        {
+            // When virtual input is active, force the game to think it's active
+            // This ensures UpdateControlInput gets called even when minimized
+            if (VirtualInputSimulator.Active)
+            {
+                __result = true;
+            }
+        }
+    }
 }
