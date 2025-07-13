@@ -1,22 +1,19 @@
 using HarmonyLib;
 using Microsoft.Xna.Framework.Input;
 using StardewValley;
+using System.Reflection;
 using VirtualKeyboard.Simulation;
 
 namespace VirtualKeyboard.Patches
 {
-    /// <summary>
-    /// Patches InputState.GetKeyboardState() to override focus checks when virtual input is active.
-    /// This is the core method that blocks input when the game is minimized.
-    /// </summary>
-    [HarmonyPatch(typeof(StardewValley.InputState))]
+    [HarmonyPatch]
     public class InputState_Patches
     {
         /// <summary>
         /// Prefix patch for InputState.GetKeyboardState() to bypass focus checks when virtual input is active.
         /// This allows input simulation to work even when the game is minimized.
         /// </summary>
-        [HarmonyPatch("GetKeyboardState")]
+        [HarmonyPatch(typeof(StardewValley.InputState), "GetKeyboardState")]
         [HarmonyPrefix]
         public static bool GetKeyboardState_Prefix(ref KeyboardState __result, StardewValley.InputState __instance)
         {
@@ -97,11 +94,11 @@ namespace VirtualKeyboard.Patches
     /// Critical patch for Game1.IsActiveNoOverlay to ensure UpdateControlInput is called
     /// even when the game is minimized and virtual input is active.
     /// </summary>
-    [HarmonyPatch(typeof(Game1))]
+    [HarmonyPatch]
     public class Game1_IsActiveNoOverlay_Patches
     {
-        [HarmonyPatch("IsActiveNoOverlay", MethodType.Getter)]
         [HarmonyPostfix]
+        [HarmonyPatch(typeof(Game1), "IsActiveNoOverlay", MethodType.Getter)]
         public static void IsActiveNoOverlay_Postfix(ref bool __result)
         {
             // When virtual input is active, force the game to think it's active
