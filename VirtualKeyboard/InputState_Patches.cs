@@ -109,4 +109,115 @@ namespace VirtualKeyboard.Patches
             }
         }
     }
+
+    /// <summary>
+    /// Patches for Farmer.Halt() to prevent virtual input from being blocked during warps.
+    /// When virtual input is active, we preserve movement capabilities during warp transitions.
+    /// </summary>
+    [HarmonyPatch]
+    public class Farmer_Halt_Patches
+    {
+        [HarmonyPatch(typeof(Farmer), "Halt")]
+        [HarmonyPostfix]
+        public static void Halt_Postfix(Farmer __instance)
+        {
+            // If virtual input is active, restore movement capabilities after Halt()
+            if (VirtualInputSimulator.Active && __instance.IsLocalPlayer)
+            {
+                // Restore CanMove - this is critical for virtual input to function
+                __instance.CanMove = true;
+                
+                // Clear any movement freezing that might block virtual input
+                __instance.freezePause = 0;
+                
+                // Ensure global freeze controls don't interfere with virtual input
+                Game1.freezeControls = false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Patches for Farmer.warpFarmer() to ensure virtual input continues working after warps.
+    /// This handles both the Farmer instance method and ensures proper state restoration.
+    /// </summary>
+    [HarmonyPatch]
+    public class Farmer_WarpFarmer_Patches
+    {
+        [HarmonyPatch(typeof(Farmer), "warpFarmer", new[] { typeof(Warp), typeof(int) })]
+        [HarmonyPostfix]
+        public static void WarpFarmer_Postfix(Farmer __instance, Warp w, int warp_collide_direction)
+        {
+            // If virtual input is active, ensure movement is restored after warp
+            if (VirtualInputSimulator.Active && __instance.IsLocalPlayer)
+            {
+                // Use a delayed action to restore movement after the warp completes
+                Game1.delayedActions.Add(new DelayedAction(100, delegate
+                {
+                    if (VirtualInputSimulator.Active && __instance.IsLocalPlayer)
+                    {
+                        __instance.CanMove = true;
+                        __instance.freezePause = 0;
+                        Game1.freezeControls = false;
+                        
+                        // Clear any movement directions that might have been set during halt
+                        __instance.movementDirections.Clear();
+                    }
+                }));
+            }
+        }
+
+        [HarmonyPatch(typeof(Farmer), "warpFarmer", new[] { typeof(Warp) })]
+        [HarmonyPostfix]
+        public static void WarpFarmer_Simple_Postfix(Farmer __instance, Warp w)
+        {
+            // Handle the simpler warpFarmer overload
+            if (VirtualInputSimulator.Active && __instance.IsLocalPlayer)
+            {
+                Game1.delayedActions.Add(new DelayedAction(100, delegate
+                {
+                    if (VirtualInputSimulator.Active && __instance.IsLocalPlayer)
+                    {
+                        __instance.CanMove = true;
+                        __instance.freezePause = 0;
+                        Game1.freezeControls = false;
+                        __instance.movementDirections.Clear();
+                    }
+                }));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Patches for Farmer.OnWarp() to handle virtual input state after warp completion.
+    /// This ensures virtual input remains functional after the warp event chain completes.
+    /// </summary>
+    [HarmonyPatch]
+    public class Farmer_OnWarp_Patches
+    {
+        [HarmonyPatch(typeof(Farmer), "OnWarp")]
+        [HarmonyPostfix]
+        public static void OnWarp_Postfix(Farmer __instance)
+        {
+            // Ensure virtual input works after warp completion
+            if (VirtualInputSimulator.Active && __instance.IsLocalPlayer)
+            {
+                // Add a slightly longer delay to ensure all warp processes have completed
+                Game1.delayedActions.Add(new DelayedAction(200, delegate
+                {
+                    if (VirtualInputSimulator.Active && __instance.IsLocalPlayer)
+                    {
+                        __instance.CanMove = true;
+                        __instance.freezePause = 0;
+                        Game1.freezeControls = false;
+                        __instance.movementDirections.Clear();
+                        
+                        // Ensure the farmer is not stuck in any animation state
+                        __instance.FarmerSprite.PauseForSingleAnimation = false;
+                        __instance.UsingTool = false;
+                        __instance.forceTimePass = false;
+                    }
+                }));
+            }
+        }
+    }
 }

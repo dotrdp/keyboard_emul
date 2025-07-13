@@ -1,4 +1,99 @@
-# STICKY KEY FIX - WARP BEHAVIOR ANALYSIS
+# WARP BEHAVIOR FIX - VIRTUAL INPUT RESTORATION
+
+## Problem
+The virtual keyboard input was stopping whenever the player warped to a new location. This was happening because the warp process calls `Farmer.Halt()` which sets `CanMove = false` and other movement-blocking properties, preventing virtual input simulation from working.
+
+## Root Cause Analysis
+Based on investigation of the Stardew Valley decompiled source code, the warp process follows this sequence:
+
+1. `Farmer.warpFarmer()` is called
+2. `Farmer.Halt()` is immediately called before the warp
+3. `Halt()` sets `CanMove = false`, clears movement directions, and may set freeze states
+4. The warp occurs but the movement-blocking state persists
+5. Virtual input simulation fails because `CanMove` is false
+
+Key methods involved:
+- `Farmer.warpFarmer(Warp w, int warp_collide_direction)` - calls `Halt()` before warping
+- `Farmer.warpFarmer(Warp w)` - overload that also triggers halt
+- `Farmer.Halt()` - sets movement-blocking properties
+- `Farmer.OnWarp()` - called after warp completion
+
+## Solution
+Added three new Harmony patches to `InputState_Patches.cs`:
+
+### 1. Farmer_Halt_Patches
+**Purpose**: Restores movement capabilities immediately after `Halt()` when virtual input is active.
+
+**Approach**: Uses a `[HarmonyPostfix]` on `Farmer.Halt()` to:
+- Restore `CanMove = true`
+- Clear `freezePause = 0`
+- Ensure `Game1.freezeControls = false`
+
+### 2. Farmer_WarpFarmer_Patches
+**Purpose**: Ensures movement is restored after warp initiation.
+
+**Approach**: Uses `[HarmonyPostfix]` on both `warpFarmer` overloads with a delayed action to:
+- Restore movement properties after a 100ms delay
+- Clear movement directions that might interfere
+- Handle both warp method signatures
+
+### 3. Farmer_OnWarp_Patches
+**Purpose**: Final cleanup after warp completion to ensure stable virtual input.
+
+**Approach**: Uses `[HarmonyPostfix]` on `Farmer.OnWarp()` with a 200ms delay to:
+- Ensure all movement properties are restored
+- Clear animation states that might block input
+- Provide comprehensive state cleanup
+
+## Implementation Details
+
+```csharp
+// Example of the Halt patch approach
+[HarmonyPatch(typeof(Farmer), "Halt")]
+[HarmonyPostfix]
+public static void Halt_Postfix(Farmer __instance)
+{
+    if (VirtualInputSimulator.Active && __instance.IsLocalPlayer)
+    {
+        __instance.CanMove = true;
+        __instance.freezePause = 0;
+        Game1.freezeControls = false;
+    }
+}
+```
+
+## Key Benefits
+1. **Non-intrusive**: Only activates when virtual input is active
+2. **Targeted**: Only affects the local player
+3. **Comprehensive**: Handles multiple warp scenarios and edge cases
+4. **Reliable**: Uses delayed actions to ensure timing doesn't interfere with warp logic
+5. **Safe**: Preserves normal game behavior when virtual input is not active
+
+## Testing Scenarios
+The fix should be tested with:
+- Farm warps (using totems, cave entrance, etc.)
+- Building entrances/exits
+- Mine level transitions
+- Cutscene warps
+- Multiplayer warps
+- Horse-mounted warps
+
+## Technical Notes
+- Uses `DelayedAction` to avoid timing conflicts with the warp process
+- Checks `VirtualInputSimulator.Active` to only intervene when necessary
+- Verifies `__instance.IsLocalPlayer` to avoid affecting other players in multiplayer
+- Multiple patch points provide redundancy for different warp scenarios
+
+## Related Files
+- `VirtualKeyboard/InputState_Patches.cs` - Contains the new warp patches
+- `VirtualKeyboard/Simulation/VirtualInputSimulator.cs` - Virtual input system
+- Previous fixes in `InputState_Patches.cs` for minimized window scenarios
+
+This fix complements the existing virtual input system by ensuring that warp events don't permanently disable virtual input functionality.
+
+---
+
+# PREVIOUS STICKY KEY FIX ANALYSIS (for reference)
 
 ## Root Cause Analysis
 

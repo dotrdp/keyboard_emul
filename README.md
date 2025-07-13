@@ -264,6 +264,28 @@ keybind_enable false    # Temporarily disable
 keybind_clear          # Reset all state
 ```
 
+## 🔧 Recent Updates
+
+### Warp Behavior Fix
+**Issue**: Virtual keyboard input was stopping whenever the player warped to a new location.
+
+**Root Cause**: The warp process calls `Farmer.Halt()` which sets `CanMove = false` and other movement-blocking properties, preventing virtual input simulation from working.
+
+**Solution**: Added comprehensive Harmony patches that:
+- Restore movement capabilities after `Farmer.Halt()` when virtual input is active
+- Ensure movement properties are restored after warp completion  
+- Handle all warp scenarios (farm totems, building transitions, mine levels, etc.)
+- Use delayed actions to avoid timing conflicts with the warp process
+- Only intervene when virtual input is active to preserve normal game behavior
+
+**Files Modified**: `InputState_Patches.cs` - Added `Farmer_Halt_Patches`, `Farmer_WarpFarmer_Patches`, and `Farmer_OnWarp_Patches`
+
+### Minimized Window Support  
+The mod includes sophisticated patches to enable virtual input simulation even when Stardew Valley is minimized or doesn't have focus:
+- Bypasses focus checks in `InputState.GetKeyboardState()`
+- Forces `Game1.IsActiveNoOverlay` to return true when virtual input is active
+- Maintains full functionality regardless of window state
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please:
