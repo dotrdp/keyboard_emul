@@ -105,7 +105,7 @@ namespace VirtualKeyboard
             HeldKeys[key] = DateTime.MaxValue; // Hold indefinitely until released
             KeyStateChanged?.Invoke(key, true);
             
-            Patches.IPatch.Info($"Virtual key pressed: {key}");
+            // Silent operation - only log on demand via status commands
         }
 
         /// <summary>
@@ -122,7 +122,7 @@ namespace VirtualKeyboard
                 ReleasedKeys.Add(key);
                 KeyStateChanged?.Invoke(key, false);
                 
-                Patches.IPatch.Info($"Virtual key released: {key}");
+                // Silent operation - only log on demand via status commands
             }
         }
 
@@ -139,7 +139,7 @@ namespace VirtualKeyboard
             HeldKeys[key] = DateTime.Now.AddMilliseconds(durationMs);
             KeyStateChanged?.Invoke(key, true);
             
-            Patches.IPatch.Info($"Virtual key held: {key} for {durationMs}ms");
+            // Silent operation - only log on demand via status commands
         }
 
         /// <summary>
@@ -154,6 +154,7 @@ namespace VirtualKeyboard
             var sequence = new KeySequence(keys, intervalMs);
             ActiveSequences.Add(sequence);
             
+            // Only log command-level actions
             Patches.IPatch.Info($"Started key sequence: {string.Join(", ", keys)} with {intervalMs}ms intervals");
         }
 
@@ -176,6 +177,7 @@ namespace VirtualKeyboard
                 KeyStateChanged?.Invoke(key, true);
             }
             
+            // Only log command-level actions
             Patches.IPatch.Info($"Executed key combo: {string.Join("+", keyList)} for {holdDurationMs}ms");
         }
 

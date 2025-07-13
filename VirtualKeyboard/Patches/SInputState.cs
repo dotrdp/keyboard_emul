@@ -48,7 +48,7 @@ namespace VirtualKeyboard.Patches
             if (KeybindManager.IsKeyHeld(button))
             {
                 __result = true;
-                IPatch.Trace($"Virtual key override (InputHelper): {button} is down");
+                // Only log key changes, not every frame check
             }
         }
     }
@@ -119,7 +119,7 @@ namespace VirtualKeyboard.Patches
             if (KeybindManager.IsKeyHeld(button))
             {
                 __result = true;
-                IPatch.Trace($"Virtual key override (SInputState): {button} is down");
+                // Removed verbose logging to clean up console
             }
         }
 
@@ -127,8 +127,7 @@ namespace VirtualKeyboard.Patches
         {
             if (KeybindManager.HasActiveKeybinds)
             {
-                IPatch.Trace("Virtual keybinds active during Input property access");
-                // We could wrap the input object here if needed
+                // Silent operation - input interception active
             }
         }
     }
@@ -186,13 +185,7 @@ namespace VirtualKeyboard.Patches
         {
             if (KeybindManager.HasActiveKeybinds)
             {
-                // Only log once per second to avoid spam
-                var now = DateTime.Now;
-                if (now.Subtract(_lastKeyboardStateLog).TotalSeconds >= 1.0)
-                {
-                    IPatch.Trace("Virtual keybinds active during Game1.GetKeyboardState");
-                    _lastKeyboardStateLog = now;
-                }
+                // Silent operation - keyboard state interception active
             }
         }
 
@@ -202,7 +195,7 @@ namespace VirtualKeyboard.Patches
         {
             if (KeybindManager.HasActiveKeybinds)
             {
-                IPatch.Trace("Virtual keybinds active during Game1.oldKBState access");
+                // Silent operation - old keyboard state interception active
             }
         }
     }
@@ -239,7 +232,7 @@ namespace VirtualKeyboard.Patches
                 if (KeybindManager.IsKeyHeld(sButton))
                 {
                     __result = true;
-                    IPatch.Trace($"Virtual key override: XNA {key} -> SButton {sButton} is down");
+                    // Removed verbose logging to clean up console
                 }
             }
         }

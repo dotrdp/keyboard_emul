@@ -1,3 +1,4 @@
+using System;
 using HarmonyLib;
 using Microsoft.Xna.Framework.Input;
 using VirtualKeyboard.Simulation;
@@ -23,7 +24,7 @@ namespace VirtualKeyboard.Patches
             if (VirtualInputSimulator.Active)
             {
                 var virtualKeyboard = VirtualInputSimulator.Instance.GetKeyboardState();
-                ModEntry.Monitor.Log($"SInputState patch: Injecting virtual keyboard with {virtualKeyboard.GetPressedKeys().Length} keys", StardewModdingAPI.LogLevel.Trace);
+                // Silent operation - no frame-by-frame logging
                 __result = virtualKeyboard;
             }
         }

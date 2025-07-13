@@ -110,7 +110,7 @@ namespace VirtualKeyboard.Patches
             if (KeybindManager.IsKeyHeld(button))
             {
                 __result = true;
-                IPatch.Trace($"SMAPI Virtual key override: {button} is down");
+                // Virtual key active (logging reduced to avoid spam)
             }
         }
 
@@ -118,13 +118,7 @@ namespace VirtualKeyboard.Patches
         {
             if (KeybindManager.HasActiveKeybinds)
             {
-                // Only log once per second to avoid spam
-                var now = DateTime.Now;
-                if (now.Subtract(_lastGetStateLog).TotalSeconds >= 1.0)
-                {
-                    IPatch.Trace("Virtual keybinds active during SMAPI GetState call");
-                    _lastGetStateLog = now;
-                }
+                // Silent operation - SMAPI GetState interception active
             }
         }
 
@@ -196,7 +190,7 @@ namespace VirtualKeyboard.Patches
             if (KeybindManager.IsKeyHeld(button))
             {
                 __result = true;
-                IPatch.Trace($"Game1.input Virtual key override: {button} is down");
+                // Virtual key active (logging reduced)
             }
         }
     }
