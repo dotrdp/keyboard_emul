@@ -1,10 +1,11 @@
 using System;
+using StardewModdingAPI;
 using VirtualKeyboard.Simulation;
 
 namespace VirtualKeyboard.Console
 {
     /// <summary>
-    /// Command to move up using IInputSimulator
+    /// Command to move up using KeybindManager
     /// </summary>
     public class MoveUpCommand : IConsoleCommand
     {
@@ -21,22 +22,14 @@ namespace VirtualKeyboard.Console
             }
 
             VirtualInputSimulator.Active = true;
-            VirtualInputSimulator.Instance.SetMovementPressed("up");
+            KeybindManager.HoldKey(SButton.W, duration);
 
-            // Set up timer to stop movement
-            var timer = new System.Threading.Timer(_ =>
-            {
-                VirtualInputSimulator.Instance.SetMovementReleased("up");
-                VirtualInputSimulator.Instance.ClearAllInputs();
-                VirtualInputSimulator.Active = false;
-            }, null, duration, System.Threading.Timeout.Infinite);
-
-            return $"Moving up for {duration}ms using IInputSimulator";
+            return $"Moving up for {duration}ms";
         }
     }
 
     /// <summary>
-    /// Command to move down using IInputSimulator
+    /// Command to move down using KeybindManager
     /// </summary>
     public class MoveDownCommand : IConsoleCommand
     {
@@ -53,22 +46,14 @@ namespace VirtualKeyboard.Console
             }
 
             VirtualInputSimulator.Active = true;
-            VirtualInputSimulator.Instance.SetMovementPressed("down");
+            KeybindManager.HoldKey(SButton.S, duration);
 
-            // Set up timer to stop movement
-            var timer = new System.Threading.Timer(_ =>
-            {
-                VirtualInputSimulator.Instance.SetMovementReleased("down");
-                VirtualInputSimulator.Instance.ClearAllInputs();
-                VirtualInputSimulator.Active = false;
-            }, null, duration, System.Threading.Timeout.Infinite);
-
-            return $"Moving down for {duration}ms using IInputSimulator";
+            return $"Moving down for {duration}ms";
         }
     }
 
     /// <summary>
-    /// Command to move left using IInputSimulator
+    /// Command to move left using KeybindManager
     /// </summary>
     public class MoveLeftCommand : IConsoleCommand
     {
@@ -85,22 +70,14 @@ namespace VirtualKeyboard.Console
             }
 
             VirtualInputSimulator.Active = true;
-            VirtualInputSimulator.Instance.SetMovementPressed("left");
+            KeybindManager.HoldKey(SButton.A, duration);
 
-            // Set up timer to stop movement
-            var timer = new System.Threading.Timer(_ =>
-            {
-                VirtualInputSimulator.Instance.SetMovementReleased("left");
-                VirtualInputSimulator.Instance.ClearAllInputs();
-                VirtualInputSimulator.Active = false;
-            }, null, duration, System.Threading.Timeout.Infinite);
-
-            return $"Moving left for {duration}ms using IInputSimulator";
+            return $"Moving left for {duration}ms";
         }
     }
 
     /// <summary>
-    /// Command to move right using IInputSimulator
+    /// Command to move right using KeybindManager
     /// </summary>
     public class MoveRightCommand : IConsoleCommand
     {
@@ -117,17 +94,9 @@ namespace VirtualKeyboard.Console
             }
 
             VirtualInputSimulator.Active = true;
-            VirtualInputSimulator.Instance.SetMovementPressed("right");
+            KeybindManager.HoldKey(SButton.D, duration);
 
-            // Set up timer to stop movement
-            var timer = new System.Threading.Timer(_ =>
-            {
-                VirtualInputSimulator.Instance.SetMovementReleased("right");
-                VirtualInputSimulator.Instance.ClearAllInputs();
-                VirtualInputSimulator.Active = false;
-            }, null, duration, System.Threading.Timeout.Infinite);
-
-            return $"Moving right for {duration}ms using IInputSimulator";
+            return $"Moving right for {duration}ms";
         }
     }
 
@@ -142,8 +111,12 @@ namespace VirtualKeyboard.Console
 
         public string Execute(string[] args)
         {
-            VirtualInputSimulator.Instance.ClearAllInputs();
-            VirtualInputSimulator.Active = false;
+            // Release all movement keys
+            KeybindManager.ReleaseKey(SButton.W);
+            KeybindManager.ReleaseKey(SButton.A);
+            KeybindManager.ReleaseKey(SButton.S);
+            KeybindManager.ReleaseKey(SButton.D);
+
             return "All virtual movement stopped";
         }
     }

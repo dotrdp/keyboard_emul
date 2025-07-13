@@ -280,12 +280,9 @@ Basic Commands:
 • keybind_hold <key> <duration>    - Hold key for specific time
 • keybind_clear                    - Clear all keys
 
-Advanced Commands:
-• keybind_sequence <k1,k2,k3> [ms] - Execute key sequence
-• keybind_combo <k1+k2+k3> [ms]    - Execute simultaneous combo
-• keybind_status                   - Show current status
-• keybind_list [category]          - List available keys
+System Commands:
 • keybind_enable <true|false>      - Enable/disable system
+• keybind_windows <action>         - Control minimized game support
 
 Movement Commands:
 • move_up [duration]               - Move up
@@ -298,7 +295,70 @@ Examples:
 • keybind_press C                  - Hold action key
 • keybind_hold F 500               - Interact for 500ms
 • keybind_sequence W,W,D,D 200     - Move sequence
-• keybind_combo LeftShift+C 300    - Shift+Action combo";
+• keybind_combo LeftShift+C 300    - Shift+Action combo
+• keybind_windows enable           - Enable minimized game support";
+        }
+    }
+
+    /// <summary>
+    /// Command to control Windows input simulation for minimized game support
+    /// </summary>
+    public class KeybindWindowsInputCommand : IConsoleCommand
+    {
+        public string Name => "keybind_windows";
+        public string Description => "Control Windows input simulation for minimized game support";
+        public string Usage => "keybind_windows <enable|disable|status|reinit>";
+
+        public string Execute(string[] args)
+        {
+            if (args.Length == 0)
+                return @"Windows Input Simulator Commands:
+• keybind_windows enable    - Enable Windows input for minimized game
+• keybind_windows disable   - Disable Windows input 
+• keybind_windows status    - Show Windows input status
+• keybind_windows reinit    - Reinitialize Windows input simulator";
+
+            var action = args[0].ToLower();
+            return action switch
+            {
+                "enable" => EnableWindowsInput(),
+                "disable" => DisableWindowsInput(),
+                "status" => GetWindowsInputStatus(),
+                "reinit" => ReinitializeWindowsInput(),
+                _ => "Error: Invalid action. Use enable, disable, status, or reinit"
+            };
+        }
+
+        private string EnableWindowsInput()
+        {
+            KeybindManager.UseWindowsInputWhenMinimized = true;
+            WindowsInputSimulator.Enabled = true;
+            WindowsInputSimulator.Initialize();
+            
+            return $"Windows input enabled. Status: {WindowsInputSimulator.GetStatus()}";
+        }
+
+        private string DisableWindowsInput()
+        {
+            KeybindManager.UseWindowsInputWhenMinimized = false;
+            WindowsInputSimulator.Enabled = false;
+            
+            return "Windows input disabled";
+        }
+
+        private string GetWindowsInputStatus()
+        {
+            return $@"Windows Input Status:
+• KeybindManager Windows Input: {KeybindManager.UseWindowsInputWhenMinimized}
+• {WindowsInputSimulator.GetStatus()}
+
+This allows keybind simulation to work even when the game is minimized.";
+        }
+
+        private string ReinitializeWindowsInput()
+        {
+            WindowsInputSimulator.Reinitialize();
+            return $"Windows input reinitialized. Status: {WindowsInputSimulator.GetStatus()}";
         }
     }
 }

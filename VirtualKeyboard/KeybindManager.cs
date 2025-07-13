@@ -4,11 +4,13 @@ using System.Linq;
 using Microsoft.Xna.Framework.Input;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
+using VirtualKeyboard.Simulation;
 
 namespace VirtualKeyboard
 {
     /// <summary>
     /// Manages virtual keyboard input state and keybind simulation
+    /// Enhanced with Windows API input for minimized game support
     /// </summary>
     public static class KeybindManager
     {
@@ -43,6 +45,11 @@ namespace VirtualKeyboard
         public static bool IsEnabled { get; set; } = true;
 
         /// <summary>
+        /// Whether to use low-level Windows input when game is minimized
+        /// </summary>
+        public static bool UseWindowsInputWhenMinimized { get; set; } = true;
+
+        /// <summary>
         /// Event fired when virtual key state changes
         /// </summary>
         public static event Action<SButton, bool>? KeyStateChanged;
@@ -57,6 +64,12 @@ namespace VirtualKeyboard
             PressedKeys.Clear();
             ReleasedKeys.Clear();
             ActiveSequences.Clear();
+            
+            // Initialize Windows input simulator for minimized game support
+            if (UseWindowsInputWhenMinimized)
+            {
+                WindowsInputSimulator.Initialize();
+            }
         }
 
         /// <summary>
@@ -105,6 +118,12 @@ namespace VirtualKeyboard
             HeldKeys[key] = DateTime.MaxValue; // Hold indefinitely until released
             KeyStateChanged?.Invoke(key, true);
             
+            // Also send to Windows input simulator for minimized game support
+            if (UseWindowsInputWhenMinimized && TryConvertSButtonToKeys(key, out var xnaKey))
+            {
+                WindowsInputSimulator.SendKeyInput(xnaKey, true);
+            }
+            
             // Silent operation - only log on demand via status commands
         }
 
@@ -121,6 +140,12 @@ namespace VirtualKeyboard
                 HeldKeys.Remove(key);
                 ReleasedKeys.Add(key);
                 KeyStateChanged?.Invoke(key, false);
+                
+                // Also send to Windows input simulator for minimized game support
+                if (UseWindowsInputWhenMinimized && TryConvertSButtonToKeys(key, out var xnaKey))
+                {
+                    WindowsInputSimulator.SendKeyInput(xnaKey, false);
+                }
                 
                 // Silent operation - only log on demand via status commands
             }
@@ -139,6 +164,13 @@ namespace VirtualKeyboard
             HeldKeys[key] = DateTime.Now.AddMilliseconds(durationMs);
             KeyStateChanged?.Invoke(key, true);
             
+            // Also send to Windows input simulator for minimized game support
+            if (UseWindowsInputWhenMinimized && TryConvertSButtonToKeys(key, out var xnaKey))
+            {
+                // Fire and forget for Windows input
+                System.Threading.Tasks.Task.Run(async () => await WindowsInputSimulator.SendKeyInputAsync(xnaKey, durationMs));
+            }
+            
             // Silent operation - only log on demand via status commands
         }
 
@@ -154,7 +186,7 @@ namespace VirtualKeyboard
             var sequence = new KeySequence(keys, intervalMs);
             ActiveSequences.Add(sequence);
             
-            // Only log command-level actions
+            // Only log sequence start - no individual key logs
             Patches.IPatch.Info($"Started key sequence: {string.Join(", ", keys)} with {intervalMs}ms intervals");
         }
 
@@ -177,7 +209,7 @@ namespace VirtualKeyboard
                 KeyStateChanged?.Invoke(key, true);
             }
             
-            // Only log command-level actions
+            // Only log combo execution - no individual key logs
             Patches.IPatch.Info($"Executed key combo: {string.Join("+", keyList)} for {holdDurationMs}ms");
         }
 
@@ -248,6 +280,64 @@ namespace VirtualKeyboard
             var sequences = ActiveSequences.Count;
             
             return $"Held Keys: [{string.Join(", ", held)}], Active Sequences: {sequences}, Enabled: {IsEnabled}";
+        }
+
+        /// <summary>
+        /// Convert SMAPI SButton to XNA Keys for Windows input simulation
+        /// </summary>
+        private static bool TryConvertSButtonToKeys(SButton sButton, out Keys key)
+        {
+            key = sButton switch
+            {
+                // Movement keys
+                SButton.W => Keys.W,
+                SButton.A => Keys.A,
+                SButton.S => Keys.S,
+                SButton.D => Keys.D,
+                
+                // Action keys
+                SButton.C => Keys.C,
+                SButton.X => Keys.X,
+                SButton.F => Keys.F,
+                SButton.Y => Keys.Y,
+                SButton.N => Keys.N,
+                
+                // Inventory keys  
+                SButton.D1 => Keys.D1,
+                SButton.D2 => Keys.D2,
+                SButton.D3 => Keys.D3,
+                SButton.D4 => Keys.D4,
+                SButton.D5 => Keys.D5,
+                SButton.D6 => Keys.D6,
+                SButton.D7 => Keys.D7,
+                SButton.D8 => Keys.D8,
+                SButton.D9 => Keys.D9,
+                SButton.D0 => Keys.D0,
+                SButton.OemMinus => Keys.OemMinus,
+                SButton.OemPlus => Keys.OemPlus,
+                
+                // Menu keys
+                SButton.E => Keys.E,
+                SButton.M => Keys.M,
+                SButton.J => Keys.J,
+                SButton.I => Keys.I,
+                SButton.Tab => Keys.Tab,
+                SButton.Escape => Keys.Escape,
+                
+                // Modifier keys
+                SButton.LeftShift => Keys.LeftShift,
+                SButton.RightShift => Keys.RightShift,
+                SButton.LeftControl => Keys.LeftControl,
+                SButton.RightControl => Keys.RightControl,
+                SButton.LeftAlt => Keys.LeftAlt,
+                SButton.RightAlt => Keys.RightAlt,
+                SButton.Space => Keys.Space,
+                SButton.Enter => Keys.Enter,
+                
+                _ => Keys.None
+            };
+            
+            return key != Keys.None;
         }
     }
 
