@@ -81,9 +81,6 @@ namespace VirtualKeyboard
         /// </summary>
         public static void Update()
         {
-            // TRACE: Always log that Update is being called, even if disabled
-            Patches.IPatch.Trace($"KeybindManager.Update() called - IsEnabled: {IsEnabled}, HeldKeys.Count: {HeldKeys.Count}");
-            
             if (!IsEnabled) 
             {
                 if (HeldKeys.Count > 0)

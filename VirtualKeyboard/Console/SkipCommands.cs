@@ -337,11 +337,6 @@ namespace VirtualKeyboard.Console
         /// </summary>
         public static (bool events, bool dialogues, int speed) GetSettings()
         {
-            // Add debug logging to verify this method is being called
-            if (ModEntry.Monitor != null)
-            {
-                ModEntry.Monitor.Log($"GetSettings called: Events={AutoSkipEvents}, Dialogues={AutoSkipDialogues}, Speed={DialogueSpeed}", LogLevel.Trace);
-            }
             return (AutoSkipEvents, AutoSkipDialogues, DialogueSpeed);
         }
     }

@@ -254,13 +254,6 @@ namespace VirtualKeyboard
             // Check for auto-skip opportunities
             if (Context.IsWorldReady)
             {
-                // Add debug logging every 60 ticks (1 second) to verify this is being called
-                if (e.Ticks % 60 == 0)
-                {
-                    var (events, dialogues, speed) = AutoSkipCommands.GetSettings();
-                    Monitor.Log($"Auto-skip check (every 60 ticks): Events={events}, Dialogues={dialogues}, Speed={speed}", LogLevel.Trace);
-                }
-                
                 AutoSkipCommands.CheckAutoSkipEvent();
                 AutoSkipCommands.CheckAutoSkipDialogue();
                 AutoSkipCommands.CheckAutoSkipLetter();
