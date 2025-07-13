@@ -1,6 +1,8 @@
 using StardewValley.Util;
 using Microsoft.Xna.Framework.Input;
 using System.Collections.Generic;
+using System.Linq;
+using StardewModdingAPI;
 
 namespace VirtualKeyboard.Simulation
 {
@@ -133,14 +135,14 @@ namespace VirtualKeyboard.Simulation
         }
 
         /// <summary>
-        /// Creates a virtual KeyboardState based on current movement inputs
+        /// Creates a virtual KeyboardState based on current movement inputs and KeybindManager state
         /// This follows the TASMod pattern for input simulation
         /// </summary>
         public KeyboardState GetKeyboardState()
         {
             var pressedKeys = new List<Keys>();
 
-            // Map movement directions to WASD keys
+            // Add movement keys based on internal state
             if (_moveUpPressed || _moveUpHeld)
                 pressedKeys.Add(Keys.W);
             if (_moveDownPressed || _moveDownHeld)
@@ -150,7 +152,82 @@ namespace VirtualKeyboard.Simulation
             if (_moveRightPressed || _moveRightHeld)
                 pressedKeys.Add(Keys.D);
 
+            // Add keys from KeybindManager
+            if (KeybindManager.IsEnabled)
+            {
+                var heldKeys = KeybindManager.GetHeldKeys();
+                foreach (var sButton in heldKeys)
+                {
+                    // Convert SButton to Keys if possible
+                    if (TryConvertSButtonToKeys(sButton, out Keys key))
+                    {
+                        if (!pressedKeys.Contains(key))
+                            pressedKeys.Add(key);
+                    }
+                }
+            }
+
             return new KeyboardState(pressedKeys.ToArray());
+        }
+
+        /// <summary>
+        /// Convert SButton to Keys enum for keyboard state generation
+        /// </summary>
+        private bool TryConvertSButtonToKeys(SButton sButton, out Keys key)
+        {
+            // Handle movement keys
+            switch (sButton)
+            {
+                case SButton.W: key = Keys.W; return true;
+                case SButton.A: key = Keys.A; return true;
+                case SButton.S: key = Keys.S; return true;
+                case SButton.D: key = Keys.D; return true;
+                
+                // Action keys
+                case SButton.C: key = Keys.C; return true;
+                case SButton.X: key = Keys.X; return true;
+                case SButton.F: key = Keys.F; return true;
+                case SButton.Y: key = Keys.Y; return true;
+                case SButton.N: key = Keys.N; return true;
+                
+                // Inventory keys  
+                case SButton.D1: key = Keys.D1; return true;
+                case SButton.D2: key = Keys.D2; return true;
+                case SButton.D3: key = Keys.D3; return true;
+                case SButton.D4: key = Keys.D4; return true;
+                case SButton.D5: key = Keys.D5; return true;
+                case SButton.D6: key = Keys.D6; return true;
+                case SButton.D7: key = Keys.D7; return true;
+                case SButton.D8: key = Keys.D8; return true;
+                case SButton.D9: key = Keys.D9; return true;
+                case SButton.D0: key = Keys.D0; return true;
+                case SButton.OemMinus: key = Keys.OemMinus; return true;
+                case SButton.OemPlus: key = Keys.OemPlus; return true;
+                
+                // Menu keys
+                case SButton.Escape: key = Keys.Escape; return true;
+                case SButton.E: key = Keys.E; return true;
+                case SButton.I: key = Keys.I; return true;
+                case SButton.M: key = Keys.M; return true;
+                case SButton.J: key = Keys.J; return true;
+                case SButton.Tab: key = Keys.Tab; return true;
+                
+                // Modifier keys
+                case SButton.LeftShift: key = Keys.LeftShift; return true;
+                case SButton.RightShift: key = Keys.RightShift; return true;
+                case SButton.LeftControl: key = Keys.LeftControl; return true;
+                case SButton.RightControl: key = Keys.RightControl; return true;
+                case SButton.LeftAlt: key = Keys.LeftAlt; return true;
+                case SButton.RightAlt: key = Keys.RightAlt; return true;
+                
+                // Space and Enter
+                case SButton.Space: key = Keys.Space; return true;
+                case SButton.Enter: key = Keys.Enter; return true;
+                
+                default:
+                    key = Keys.None;
+                    return false;
+            }
         }
     }
 }
