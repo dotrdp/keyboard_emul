@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework.Input;
 using StardewModdingAPI;
 using StardewValley;
 using System;
+using System.Linq;
 using System.Reflection;
 
 namespace VirtualKeyboard.Patches
@@ -185,7 +186,24 @@ namespace VirtualKeyboard.Patches
         {
             if (KeybindManager.HasActiveKeybinds)
             {
-                // Silent operation - keyboard state interception active
+                // Get the virtual keyboard state from our simulator
+                var virtualState = VirtualKeyboard.Simulation.VirtualInputSimulator.Instance.GetKeyboardState();
+                
+                // Combine the current state with our virtual state
+                var currentKeys = __result.GetPressedKeys().ToList();
+                var virtualKeys = virtualState.GetPressedKeys().ToList();
+                
+                // Add virtual keys that aren't already pressed
+                foreach (var virtualKey in virtualKeys)
+                {
+                    if (!currentKeys.Contains(virtualKey))
+                    {
+                        currentKeys.Add(virtualKey);
+                    }
+                }
+                
+                // Create new keyboard state with combined keys
+                __result = new KeyboardState(currentKeys.ToArray());
             }
         }
 

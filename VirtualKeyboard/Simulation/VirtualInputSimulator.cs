@@ -25,6 +25,11 @@ namespace VirtualKeyboard.Simulation
         private bool _moveLeftHeld;
         private bool _moveDownHeld;
 
+        // Generic key tracking for all keys
+        private readonly Dictionary<Keys, bool> _heldKeys = new();
+        private readonly Dictionary<Keys, bool> _pressedKeys = new();
+        private readonly Dictionary<Keys, bool> _releasedKeys = new();
+
         public static VirtualInputSimulator Instance { get; } = new();
         public static bool Active { get; set; } = false;
 
@@ -132,6 +137,38 @@ namespace VirtualKeyboard.Simulation
             _moveRightHeld = false;
             _moveLeftHeld = false;
             _moveDownHeld = false;
+            
+            // Clear generic key tracking
+            _pressedKeys.Clear();
+            _releasedKeys.Clear();
+            _heldKeys.Clear();
+        }
+
+        /// <summary>
+        /// Set the state of a specific key for virtual input simulation
+        /// </summary>
+        public void SetKeyPressed(Keys key, bool pressed)
+        {
+            if (pressed)
+            {
+                _heldKeys[key] = true;
+                _pressedKeys[key] = true;
+                _releasedKeys.Remove(key);
+            }
+            else
+            {
+                _heldKeys.Remove(key);
+                _pressedKeys.Remove(key);
+                _releasedKeys[key] = true;
+            }
+        }
+
+        /// <summary>
+        /// Check if a specific key is currently being held
+        /// </summary>
+        public bool IsKeyHeld(Keys key)
+        {
+            return _heldKeys.ContainsKey(key);
         }
 
         /// <summary>
@@ -151,6 +188,15 @@ namespace VirtualKeyboard.Simulation
                 pressedKeys.Add(Keys.A);
             if (_moveRightPressed || _moveRightHeld)
                 pressedKeys.Add(Keys.D);
+
+            // Add generic held keys
+            foreach (var key in _heldKeys.Keys)
+            {
+                if (!pressedKeys.Contains(key))
+                {
+                    pressedKeys.Add(key);
+                }
+            }
 
             // Add keys from KeybindManager
             if (KeybindManager.IsEnabled)

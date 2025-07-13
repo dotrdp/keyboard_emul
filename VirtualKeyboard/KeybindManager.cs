@@ -118,11 +118,17 @@ namespace VirtualKeyboard
             HeldKeys[key] = DateTime.MaxValue; // Hold indefinitely until released
             KeyStateChanged?.Invoke(key, true);
             
-            // Also send to Windows input simulator for minimized game support
-            if (UseWindowsInputWhenMinimized && TryConvertSButtonToKeys(key, out var xnaKey))
+            // Convert SButton to Keys and send to VirtualInputSimulator
+            if (TryConvertSButtonToKeys(key, out var xnaKey))
             {
                 VirtualInputSimulator.Active = true; // Enable focus override
-                WindowsInputSimulator.SendKeyInput(xnaKey, true);
+                VirtualInputSimulator.Instance.SetKeyPressed(xnaKey, true);
+                
+                // Also send to Windows input simulator for minimized game support
+                if (UseWindowsInputWhenMinimized)
+                {
+                    WindowsInputSimulator.SendKeyInput(xnaKey, true);
+                }
             }
             
             // Silent operation - only log on demand via status commands
@@ -142,14 +148,20 @@ namespace VirtualKeyboard
                 ReleasedKeys.Add(key);
                 KeyStateChanged?.Invoke(key, false);
                 
-                // Also send to Windows input simulator for minimized game support
-                if (UseWindowsInputWhenMinimized && TryConvertSButtonToKeys(key, out var xnaKey))
+                // Convert SButton to Keys and send to VirtualInputSimulator
+                if (TryConvertSButtonToKeys(key, out var xnaKey))
                 {
-                    WindowsInputSimulator.SendKeyInput(xnaKey, false);
+                    VirtualInputSimulator.Instance.SetKeyPressed(xnaKey, false);
+                    
+                    // Also send to Windows input simulator for minimized game support
+                    if (UseWindowsInputWhenMinimized)
+                    {
+                        WindowsInputSimulator.SendKeyInput(xnaKey, false);
+                    }
                 }
                 
                 // If no more keys are held, disable focus override
-                if (HeldKeys.Count == 0 && UseWindowsInputWhenMinimized)
+                if (HeldKeys.Count == 0)
                 {
                     VirtualInputSimulator.Active = false;
                 }
