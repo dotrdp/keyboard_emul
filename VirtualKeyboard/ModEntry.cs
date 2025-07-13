@@ -126,6 +126,17 @@ namespace VirtualKeyboard
                     Monitor.Log($"Failed to apply patch {patchType.Name}: {ex.Message}", LogLevel.Error);
                 }
             }
+
+            // Apply the SInputState keyboard patch separately as it doesn't use IPatch
+            try
+            {
+                SInputState_GetKeyboardState_Patch.Patch(harmony);
+                Monitor.Log("Applied SInputState_GetKeyboardState_Patch", LogLevel.Trace);
+            }
+            catch (Exception ex)
+            {
+                Monitor.Log($"Failed to apply SInputState_GetKeyboardState_Patch: {ex.Message}", LogLevel.Error);
+            }
         }
 
         /// <summary>
@@ -146,7 +157,26 @@ namespace VirtualKeyboard
                 });
             }
 
-            Monitor.Log($"Registered {commands.Count} console commands", LogLevel.Info);
+            // Register new movement commands using IInputSimulator
+            var movementCommands = new IConsoleCommand[]
+            {
+                new MoveUpCommand(),
+                new MoveDownCommand(),
+                new MoveLeftCommand(),
+                new MoveRightCommand(),
+                new StopMovementCommand()
+            };
+
+            foreach (var command in movementCommands)
+            {
+                helper.ConsoleCommands.Add(command.Name, command.Description, (name, args) =>
+                {
+                    var result = command.Execute(args);
+                    Monitor.Log(result, LogLevel.Info);
+                });
+            }
+
+            Monitor.Log($"Registered {commands.Count + movementCommands.Length} console commands", LogLevel.Info);
         }
 
         /// <summary>

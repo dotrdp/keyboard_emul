@@ -43,20 +43,12 @@ namespace VirtualKeyboard.Console
         /// </summary>
         public static void Initialize()
         {
-            // Register all keybind commands
-            RegisterCommand(new KeybindPressCommand());
-            RegisterCommand(new KeybindHoldCommand());
-            RegisterCommand(new KeybindReleaseCommand());
-            RegisterCommand(new KeybindSequenceCommand());
-            RegisterCommand(new KeybindComboCommand());
-            RegisterCommand(new KeybindRepeatCommand());
-            RegisterCommand(new KeybindListCommand());
-            RegisterCommand(new KeybindStatusCommand());
-            RegisterCommand(new KeybindClearCommand());
-            RegisterCommand(new KeybindEnableCommand());
-            RegisterCommand(new KeybindHelpCommand());
-            RegisterCommand(new KeybindTestCommand());
-            RegisterCommand(new KeybindDirectTestCommand());
+            // Register movement commands using IInputSimulator approach
+            RegisterCommand(new MoveUpCommand());
+            RegisterCommand(new MoveDownCommand());
+            RegisterCommand(new MoveLeftCommand());
+            RegisterCommand(new MoveRightCommand());
+            RegisterCommand(new StopMovementCommand());
 
             Patches.IPatch.Info("Console command system initialized");
         }
