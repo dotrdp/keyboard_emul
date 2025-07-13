@@ -23,18 +23,20 @@ namespace VirtualKeyboard.Patches
         /// </summary>
         [HarmonyPatch(typeof(StardewValley.InputState), "GetKeyboardState")]
         public class InputState_GetKeyboardState_Patch
-        {        [HarmonyPrefix]
-        public static bool GetKeyboardState_Prefix(ref KeyboardState __result)
         {
-            // Always override when virtual input is active - this prevents cached state issues
-            if (VirtualInputSimulator.Active)
+            [HarmonyPrefix]
+            public static bool GetKeyboardState_Prefix(ref KeyboardState __result)
             {
-                // Return ONLY our virtual keyboard state - ignore any cached real keyboard state
-                __result = VirtualInputSimulator.Instance.GetKeyboardState();
-                return false; // Skip original method completely
+                // Always override when virtual input is active - this prevents cached state issues
+                if (VirtualInputSimulator.Active)
+                {
+                    // Return ONLY our virtual keyboard state - ignore any cached real keyboard state
+                    __result = VirtualInputSimulator.Instance.GetKeyboardState();
+                    return false; // Skip original method completely
+                }
+                
+                return true; // Use original method when virtual input is not active
             }
-            
-            return true; // Use original method when virtual input is not active
         }
 
         /// <summary>
@@ -70,6 +72,26 @@ namespace VirtualKeyboard.Patches
             {
                 // Force IsActive to return true when virtual input is active
                 // This ensures IsActiveNoOverlay doesn't return false due to base.IsActive being false
+                if (VirtualInputSimulator.Active)
+                {
+                    __result = true;
+                }
+            }
+        }
+
+        /// <summary>
+        /// PART 4: Patch Game1.HasKeyboardFocus() to return true when virtual input is active
+        /// This is CRITICAL for unfocused window input - InputState.GetKeyboardState() checks this
+        /// From decompiled source: if (!Game1.game1.IsMainInstance || !Game1.game1.HasKeyboardFocus()) return default(KeyboardState);
+        /// </summary>
+        [HarmonyPatch(typeof(Game1), "HasKeyboardFocus")]
+        public class Game1_HasKeyboardFocus_Patches
+        {
+            [HarmonyPostfix]
+            public static void HasKeyboardFocus_Postfix(ref bool __result)
+            {
+                // Force HasKeyboardFocus to return true when virtual input is active
+                // This is essential for InputState.GetKeyboardState() to work when window is unfocused
                 if (VirtualInputSimulator.Active)
                 {
                     __result = true;
