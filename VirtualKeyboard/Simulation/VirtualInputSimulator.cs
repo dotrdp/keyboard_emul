@@ -177,6 +177,12 @@ namespace VirtualKeyboard.Simulation
         /// </summary>
         public KeyboardState GetKeyboardState()
         {
+            // If not active, return empty state
+            if (!Active)
+            {
+                return new KeyboardState();
+            }
+            
             var pressedKeys = new List<Keys>();
 
             // Add movement keys based on internal state

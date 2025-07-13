@@ -19,34 +19,22 @@ namespace VirtualKeyboard.Patches
         /// <summary>
         /// PART 1: Patch InputState.GetKeyboardState() to return virtual keyboard state when minimized
         /// This bypasses the focus check that returns empty KeyboardState when the game window isn't focused
+        /// CRITICAL: Also prevents cached keyboard state from persisting sticky keys
         /// </summary>
         [HarmonyPatch(typeof(StardewValley.InputState), "GetKeyboardState")]
         public class InputState_GetKeyboardState_Patch
+        {        [HarmonyPrefix]
+        public static bool GetKeyboardState_Prefix(ref KeyboardState __result)
         {
-            [HarmonyPrefix]
-            public static bool GetKeyboardState_Prefix(ref KeyboardState __result)
+            // Always override when virtual input is active - this prevents cached state issues
+            if (VirtualInputSimulator.Active)
             {
-                // Only override when virtual input is active
-                if (VirtualInputSimulator.Active)
-                {
-                    // Use reflection to get the real KeyboardState, bypassing focus checks
-                    var keyboardStateField = typeof(InputState).GetField("_keyboardState", BindingFlags.NonPublic | BindingFlags.Instance);
-                    if (keyboardStateField != null)
-                    {
-                        // Get current real keyboard state - handle null properly
-                        var fieldValue = keyboardStateField.GetValue(Game1.input);
-                        if (fieldValue != null)
-                        {
-                            var realState = (KeyboardState)fieldValue;
-                            
-                            // Enhance it with virtual keys
-                            __result = VirtualInputSimulator.Instance.GetKeyboardState();
-                            return false; // Skip original method
-                        }
-                    }
-                }
-                return true; // Use original method
+                // Return ONLY our virtual keyboard state - ignore any cached real keyboard state
+                __result = VirtualInputSimulator.Instance.GetKeyboardState();
+                return false; // Skip original method completely
             }
+            
+            return true; // Use original method when virtual input is not active
         }
 
         /// <summary>

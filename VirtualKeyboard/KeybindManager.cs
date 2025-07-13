@@ -151,19 +151,34 @@ namespace VirtualKeyboard
                 // Convert SButton to Keys and send to VirtualInputSimulator
                 if (TryConvertSButtonToKeys(key, out var xnaKey))
                 {
+                    // CRITICAL: Send key release to VirtualInputSimulator first
                     VirtualInputSimulator.Instance.SetKeyPressed(xnaKey, false);
                     
-                    // Also send to Windows input simulator for minimized game support
+                    // Force Windows API key release to prevent sticky keys
                     if (UseWindowsInputWhenMinimized)
                     {
                         WindowsInputSimulator.SendKeyInput(xnaKey, false);
+                        // Additional safety - send key up event twice to ensure release
+                        System.Threading.Tasks.Task.Run(async () => 
+                        {
+                            await System.Threading.Tasks.Task.Delay(50); // Small delay
+                            WindowsInputSimulator.SendKeyInput(xnaKey, false);
+                        });
                     }
                 }
                 
-                // If no more keys are held, disable focus override
+                // If no more keys are held, disable focus override and clear all virtual input
                 if (HeldKeys.Count == 0)
                 {
                     VirtualInputSimulator.Active = false;
+                    // Clear all virtual input to prevent sticky keys
+                    VirtualInputSimulator.Instance.ClearAllInputs();
+                    
+                    // Force clear all currently held Windows keys as a safety measure
+                    if (UseWindowsInputWhenMinimized)
+                    {
+                        ClearAllWindowsKeys();
+                    }
                 }
                 
                 // Silent operation - only log on demand via status commands
@@ -297,6 +312,36 @@ namespace VirtualKeyboard
         }
 
         /// <summary>
+        /// Force release all currently held keys (emergency stop)
+        /// </summary>
+        public static void ReleaseAllKeys()
+        {
+            // Create a copy of the keys to avoid modification during iteration
+            var keysToRelease = HeldKeys.Keys.ToList();
+            
+            foreach (var key in keysToRelease)
+            {
+                ReleaseKey(key);
+            }
+            
+            // Double-check and force clear everything
+            HeldKeys.Clear();
+            PressedKeys.Clear();
+            ReleasedKeys.Clear();
+            ActiveSequences.Clear();
+            
+            // Clear virtual input simulator
+            VirtualInputSimulator.Instance.ClearAllInputs();
+            VirtualInputSimulator.Active = false;
+            
+            // Force clear Windows keys as safety measure
+            if (UseWindowsInputWhenMinimized)
+            {
+                ClearAllWindowsKeys();
+            }
+        }
+
+        /// <summary>
         /// Get status information about current keybind state
         /// </summary>
         /// <returns>Status string</returns>
@@ -306,6 +351,29 @@ namespace VirtualKeyboard
             var sequences = ActiveSequences.Count;
             
             return $"Held Keys: [{string.Join(", ", held)}], Active Sequences: {sequences}, Enabled: {IsEnabled}";
+        }
+
+        /// <summary>
+        /// Forcefully clear all Windows API key states to prevent sticky keys
+        /// </summary>
+        private static void ClearAllWindowsKeys()
+        {
+            // List of common movement and action keys that might get stuck
+            var keysToRelease = new[]
+            {
+                Keys.W, Keys.A, Keys.S, Keys.D, // Movement
+                Keys.C, Keys.X, Keys.F, Keys.Y, Keys.N, // Actions
+                Keys.D1, Keys.D2, Keys.D3, Keys.D4, Keys.D5, // Inventory
+                Keys.D6, Keys.D7, Keys.D8, Keys.D9, Keys.D0,
+                Keys.E, Keys.I, Keys.M, Keys.J, Keys.Tab, // Menu
+                Keys.Space, Keys.Enter, Keys.Escape, // System
+                Keys.LeftShift, Keys.RightShift, Keys.LeftControl, Keys.RightControl // Modifiers
+            };
+
+            foreach (var key in keysToRelease)
+            {
+                WindowsInputSimulator.SendKeyInput(key, false);
+            }
         }
 
         /// <summary>

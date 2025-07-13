@@ -116,8 +116,34 @@ namespace VirtualKeyboard.Console
             KeybindManager.ReleaseKey(SButton.A);
             KeybindManager.ReleaseKey(SButton.S);
             KeybindManager.ReleaseKey(SButton.D);
+            
+            // Ensure VirtualInputSimulator is deactivated
+            VirtualInputSimulator.Active = false;
+            VirtualInputSimulator.Instance.ClearAllInputs();
 
             return "All virtual movement stopped";
+        }
+    }
+
+    /// <summary>
+    /// Command to force stop ALL virtual input (emergency stop)
+    /// </summary>
+    public class StopAllCommand : IConsoleCommand
+    {
+        public string Name => "stop_all";
+        public string Description => "Emergency stop - release ALL virtual keys and clear all input state";
+        public string Usage => "stop_all";
+
+        public string Execute(string[] args)
+        {
+            // Force release all currently held keys
+            KeybindManager.ReleaseAllKeys();
+            
+            // Force clear virtual input simulator
+            VirtualInputSimulator.Instance.ClearAllInputs();
+            VirtualInputSimulator.Active = false;
+            
+            return "All virtual input forcefully stopped and cleared";
         }
     }
 }

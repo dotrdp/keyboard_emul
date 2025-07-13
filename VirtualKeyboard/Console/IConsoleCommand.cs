@@ -49,6 +49,7 @@ namespace VirtualKeyboard.Console
             RegisterCommand(new MoveLeftCommand());
             RegisterCommand(new MoveRightCommand());
             RegisterCommand(new StopMovementCommand());
+            RegisterCommand(new StopAllCommand()); // Emergency stop for all input
 
             // Register comprehensive keybind commands
             RegisterCommand(new KeybindPressCommand());
