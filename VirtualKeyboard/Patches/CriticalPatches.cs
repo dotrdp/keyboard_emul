@@ -57,17 +57,6 @@ namespace VirtualKeyboard.Patches
                     }
                 }
 
-                // Also try to patch the Game1.IsActive property which affects input
-                var isActiveProperty = AccessTools.Property(typeof(Game1), "IsActive");
-                if (isActiveProperty?.GetMethod != null)
-                {
-                    harmony.Patch(
-                        original: isActiveProperty.GetMethod,
-                        postfix: new HarmonyMethod(this.GetType(), nameof(IsActivePostfix))
-                    );
-                    Trace("Patched Game1.IsActive");
-                }
-
                 Info("Critical input patches applied");
             }
             catch (Exception ex)
@@ -100,15 +89,6 @@ namespace VirtualKeyboard.Patches
                 return false; // Skip original method
             }
             return true; // Continue with original method
-        }
-
-        public static void IsActivePostfix(ref bool __result)
-        {
-            // Ensure the game thinks it's active when we have virtual keys
-            if (KeybindManager.HasActiveKeybinds)
-            {
-                __result = true;
-            }
         }
     }
 
