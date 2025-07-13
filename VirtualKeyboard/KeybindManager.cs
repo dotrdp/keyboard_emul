@@ -121,6 +121,7 @@ namespace VirtualKeyboard
             // Also send to Windows input simulator for minimized game support
             if (UseWindowsInputWhenMinimized && TryConvertSButtonToKeys(key, out var xnaKey))
             {
+                VirtualInputSimulator.Active = true; // Enable focus override
                 WindowsInputSimulator.SendKeyInput(xnaKey, true);
             }
             
@@ -147,6 +148,12 @@ namespace VirtualKeyboard
                     WindowsInputSimulator.SendKeyInput(xnaKey, false);
                 }
                 
+                // If no more keys are held, disable focus override
+                if (HeldKeys.Count == 0 && UseWindowsInputWhenMinimized)
+                {
+                    VirtualInputSimulator.Active = false;
+                }
+                
                 // Silent operation - only log on demand via status commands
             }
         }
@@ -167,6 +174,7 @@ namespace VirtualKeyboard
             // Also send to Windows input simulator for minimized game support
             if (UseWindowsInputWhenMinimized && TryConvertSButtonToKeys(key, out var xnaKey))
             {
+                VirtualInputSimulator.Active = true; // Enable focus override
                 // Fire and forget for Windows input
                 System.Threading.Tasks.Task.Run(async () => await WindowsInputSimulator.SendKeyInputAsync(xnaKey, durationMs));
             }
@@ -200,6 +208,12 @@ namespace VirtualKeyboard
             if (!IsEnabled) return;
 
             var keyList = keys.ToList();
+            
+            // Enable focus override for Windows input if needed
+            if (UseWindowsInputWhenMinimized && keyList.Any(k => TryConvertSButtonToKeys(k, out _)))
+            {
+                VirtualInputSimulator.Active = true;
+            }
             
             // Press all keys simultaneously
             foreach (var key in keyList)
